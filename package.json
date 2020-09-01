@@ -1,0 +1,21 @@
+{
+  "name": "yam",
+  "version": "1.0.0",
+  "description": "YAM protocol repo",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "ethers": "^5.0.8",
+    "ganache-core": "^2.11.2"
+  },
+  "devDependencies": {
+    "@truffle/hdwallet-provider": "^1.0.40",
+    "dotenv-flow": "^3.2.0",
+    "ethereumjs-abi": "^0.6.8",
+    "ethereumjs-util": "^7.0.4"
+  }
+}
