@@ -30,10 +30,10 @@ contract GovernorAlpha {
     string public constant name = "YAM Governor Alpha";
 
     /// @notice The number of votes in support of a proposal required in order for a quorum to be reached and for a vote to succeed
-    function quorumVotes() public view returns (uint256) { return 200000 ether; } // 4% of YAM
+    function quorumVotes() public view returns (uint256) { return 200000 * 10**24; } // 4% of YAM
 
     /// @notice The number of votes required in order for a voter to become a proposer
-    function proposalThreshold() public view returns (uint256) { return 50000 ether; } // 1% of YAM
+    function proposalThreshold() public view returns (uint256) { return 50000 * 10**24; } // 1% of YAM
 
     /// @notice The maximum number of actions that can be included in a proposal
     function proposalMaxOperations() public pure returns (uint256) { return 10; } // 10 actions
