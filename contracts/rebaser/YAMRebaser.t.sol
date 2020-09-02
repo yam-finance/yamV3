@@ -292,7 +292,7 @@ contract YAMRebaserTest is DSTest {
     }
 
     // long running
-    /* function test_rebase_scenario() public {
+    function test_rebase_scenario() public {
         init_twap();
         hevm.warp(now + rebaser.rebaseDelay());
         rebaser.activate_rebasing();
@@ -302,18 +302,21 @@ contract YAMRebaserTest is DSTest {
         neg_rebase();
         neg_rebase();
         pos_rebase();
-    } */
+    }
 
 
     function neg_rebase() internal {
+      hevm.warp(now + 6 hours);
       uint256 twap = rebaser.getCurrentTWAP();
       while (twap >= 95 * 10**16) {
         push_price_down();
-        hevm.warp(now + 12 hours);
+        hevm.warp(now + 6 hours);
         twap = rebaser.getCurrentTWAP();
       }
       assertTrue(rebaser.getCurrentTWAP() < 95 * 10**16);
 
+
+      hevm.warp(now + 12 hours);
       uint256 offset = rebaser.rebaseWindowOffsetSec();
       uint256 interval = rebaser.minRebaseTimeIntervalSec();
       uint256 waitTime;
@@ -363,16 +366,19 @@ contract YAMRebaserTest is DSTest {
 
 
     function pos_rebase() internal {
+      hevm.warp(now + 6 hours);
       uint256 twap = rebaser.getCurrentTWAP();
       while (twap <= 105 * 10**16) {
         push_price_up();
-        hevm.warp(now + 12 hours);
+        hevm.warp(now + 6 hours);
         twap = rebaser.getCurrentTWAP();
       }
 
 
 
       assertTrue(rebaser.getCurrentTWAP() > 105 * 10**16);
+
+      hevm.warp(now + 12 hours);
 
       uint256 offset = rebaser.rebaseWindowOffsetSec();
       uint256 interval = rebaser.minRebaseTimeIntervalSec();
@@ -394,6 +400,7 @@ contract YAMRebaserTest is DSTest {
                             + yamV3.balanceOfUnderlying(yyCRVPool)
                             + yamV3.balanceOfUnderlying(address(user));
 
+      assertTrue(rebaser.inRebaseWindow());
       rebaser.rebase();
       assertEq(rebaser.epoch(), epoch + 1);
       assertEq(rebaser.blockTimestampLast(), now);
