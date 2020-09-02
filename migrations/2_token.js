@@ -25,7 +25,7 @@ async function deployToken(deployer, network) {
       "YAM",
       "YAM",
       18,
-      "9000000000000000000000000", // print extra few mil for user
+      "0", // print extra few mil for user
       YAMImplementation.address,
       "0x"
     );
@@ -34,7 +34,7 @@ async function deployToken(deployer, network) {
       "YAM",
       "YAM",
       18,
-      "2000000000000000000000000",
+      "0",
       YAMImplementation.address,
       "0x"
     );
