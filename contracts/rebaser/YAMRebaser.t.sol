@@ -271,7 +271,7 @@ contract YAMRebaserTest is DSTest {
         neg_rebase();
     }
 
-    function test_double_negative_rebase() public {
+    /* function test_double_negative_rebase() public {
         init_twap();
         hevm.warp(now + rebaser.rebaseDelay());
         rebaser.activate_rebasing();
@@ -287,7 +287,7 @@ contract YAMRebaserTest is DSTest {
         assertTrue(rebaser.rebasingActive());
         pos_rebase();
         pos_rebase();
-    }
+    } */
 
     // long running
     /* function test_rebase_scenario() public {
