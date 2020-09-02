@@ -645,8 +645,8 @@ contract YAMIncentivizer is LPTokenWrapper, IRewardDistributionRecipient {
     IERC20 public yam = IERC20(0x0e2298E3B3390e3b945a5456fBf59eCc3f55DA16);
     uint256 public constant DURATION = 625000;
 
-    uint256 public initreward = 15 * 10**5 * 10**18; // 1.5m
-    uint256 public starttime = 1597172400 + 24 hours; // 2020-08-12 19:00:00 (UTC UTC +00:00)
+    uint256 public initreward = 925 * 10**2 * 10**18; // 92.5k
+    uint256 public starttime = 1600560000 + 48 hours; // 2020-08-12 19:00:00 (UTC UTC +00:00)
     uint256 public periodFinish = 0;
     uint256 public rewardRate = 0;
     uint256 public lastUpdateTime;
@@ -727,7 +727,7 @@ contract YAMIncentivizer is LPTokenWrapper, IRewardDistributionRecipient {
 
     modifier checkhalve() {
         if (block.timestamp >= periodFinish) {
-            initreward = initreward.mul(50).div(100);
+            initreward = initreward.mul(90).div(100);
             uint256 scalingFactor = YAM(address(yam)).yamsScalingFactor();
             uint256 newRewards = initreward.mul(scalingFactor).div(10**18);
             yam.mint(address(this), newRewards);
