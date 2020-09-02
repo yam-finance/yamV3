@@ -193,19 +193,17 @@ contract YAMDelegator is YAMTokenInterface, YAMDelegatorInterface {
 
     // --- Approve by signature ---
     function permit(
-        address holder,
+        address owner,
         address spender,
-        uint256 nonce,
-        uint256 expiry,
-        bool allowed,
+        uint256 value,
+        uint256 deadline,
         uint8 v,
         bytes32 r,
         bytes32 s
     )
         external
-        returns (bool)
     {
-        holder; spender; nonce; expiry; allowed; v; r; s; // Shh
+        owner; spender; value; deadline; v; r; s; // Shh
         delegateAndReturn();
     }
 

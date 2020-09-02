@@ -147,6 +147,7 @@ contract YAMv3Test is DSTest {
     //
     // TESTS
     //
+
     function testFail_mint() public {
         // fail
         user.doMint(yamV3, me, 10**18);
@@ -253,70 +254,44 @@ contract YAMv3Test is DSTest {
     }
 
     function test_Permit() public {
-        uint nonce = 0;
-        uint deadline = 0;
-        address cal = 0x29C76e6aD8f28BB1004902578Fb108c507Be341b;
+        address cal = 0x683A78bA1f6b25E29fbBC9Cd1BFA29A51520De84;
         address del = 0xdd2d5D3f7f1b35b7A0601D6A00DbB7D44Af58479;
-        bytes32 r = 0xc7a9f6e53ade2dc3715e69345763b9e6e5734bfe6b40b8ec8e122eb379f07e5b;
-        bytes32 s = 0x14cb2f908ca580a74089860a946f56f361d55bdb13b6ce48a998508b0fa5e776;
-        uint8 v = 27;
-        bytes32 _r = 0x64e82c811ee5e912c0f97ac1165c73d593654a6fc434a470452d8bca6ec98424;
-        bytes32 _s = 0x5a209fe6efcf6e06ec96620fd968d6331f5e02e5db757ea2a58229c9b3c033ed;
-        uint8 _v = 28;
-
-        uint256 amount = 10**18;
-
+        bytes32 r = 0xc80d2a9c3577543ad49872ca4f4604afbd6a132e8ee0e220de00e05325087c50;
+        bytes32 s = 0x2663f17ce7c7de6f7009690fc91c72ef44fca99c839524acaa4393639876d1b8;
+        uint8 v = 28;
+        uint256 deadline = 1699062789;
+        uint256 amount = 10000000;
         yamV3.transfer(cal, amount);
-        assertEq(yamV3.permit_nonces(cal), 0);
+        assertEq(yamV3.nonces(cal), 0);
         assertEq(yamV3.allowance(cal, del), 0);
-        yamV3.permit(cal, del, 0, 0, true, v, r, s);
-        assertEq(yamV3.allowance(cal, del), uint(-1));
-        assertEq(yamV3.permit_nonces(cal), 1);
+        yamV3.permit(cal, del, amount, deadline, v, r, s);
+        assertEq(yamV3.allowance(cal, del), amount);
+        assertEq(yamV3.nonces(cal), 1);
     }
 
     function testFail_PermitAddress0() public {
         uint nonce = 0;
         uint deadline = 0;
-        address cal = 0x29C76e6aD8f28BB1004902578Fb108c507Be341b;
+        address cal = 0x683A78bA1f6b25E29fbBC9Cd1BFA29A51520De84;
         address del = 0xdd2d5D3f7f1b35b7A0601D6A00DbB7D44Af58479;
-        bytes32 r = 0xc7a9f6e53ade2dc3715e69345763b9e6e5734bfe6b40b8ec8e122eb379f07e5b;
-        bytes32 s = 0x14cb2f908ca580a74089860a946f56f361d55bdb13b6ce48a998508b0fa5e776;
-        uint8 v = 27;
+        bytes32 r = 0xc80d2a9c3577543ad49872ca4f4604afbd6a132e8ee0e220de00e05325087c50;
+        bytes32 s = 0x2663f17ce7c7de6f7009690fc91c72ef44fca99c839524acaa4393639876d1b8;
+        uint8 v = 28;
         bytes32 _r = 0x64e82c811ee5e912c0f97ac1165c73d593654a6fc434a470452d8bca6ec98424;
         bytes32 _s = 0x5a209fe6efcf6e06ec96620fd968d6331f5e02e5db757ea2a58229c9b3c033ed;
         uint8 _v = 28;
         v = 0;
-        yamV3.permit(address(0), del, 0, 0, true, v, r, s);
-    }
-
-    function test_PermitWithExpiry() public {
-        uint nonce = 0;
-        uint deadline = 0;
-        address cal = 0x29C76e6aD8f28BB1004902578Fb108c507Be341b;
-        address del = 0xdd2d5D3f7f1b35b7A0601D6A00DbB7D44Af58479;
-        bytes32 r = 0xc7a9f6e53ade2dc3715e69345763b9e6e5734bfe6b40b8ec8e122eb379f07e5b;
-        bytes32 s = 0x14cb2f908ca580a74089860a946f56f361d55bdb13b6ce48a998508b0fa5e776;
-        uint8 v = 27;
-        bytes32 _r = 0x64e82c811ee5e912c0f97ac1165c73d593654a6fc434a470452d8bca6ec98424;
-        bytes32 _s = 0x5a209fe6efcf6e06ec96620fd968d6331f5e02e5db757ea2a58229c9b3c033ed;
-        uint8 _v = 28;
-
-        uint256 amount = 10**18;
-        hevm.warp(604411200);
-        assertEq(now, 604411200);
-        yamV3.permit(cal, del, 0, 604411200 + 1 hours, true, _v, _r, _s);
-        assertEq(yamV3.allowance(cal, del),uint(-1));
-        assertEq(yamV3.permit_nonces(cal),1);
+        yamV3.permit(address(0), del, 10000000, now + 100, v, r, s);
     }
 
     function testFail_PermitWithExpiry() public {
         uint nonce = 0;
         uint deadline = 0;
-        address cal = 0x29C76e6aD8f28BB1004902578Fb108c507Be341b;
+        address cal = 0x683A78bA1f6b25E29fbBC9Cd1BFA29A51520De84;
         address del = 0xdd2d5D3f7f1b35b7A0601D6A00DbB7D44Af58479;
-        bytes32 r = 0xc7a9f6e53ade2dc3715e69345763b9e6e5734bfe6b40b8ec8e122eb379f07e5b;
-        bytes32 s = 0x14cb2f908ca580a74089860a946f56f361d55bdb13b6ce48a998508b0fa5e776;
-        uint8 v = 27;
+        bytes32 r = 0xc80d2a9c3577543ad49872ca4f4604afbd6a132e8ee0e220de00e05325087c50;
+        bytes32 s = 0x2663f17ce7c7de6f7009690fc91c72ef44fca99c839524acaa4393639876d1b8;
+        uint8 v = 28;
         bytes32 _r = 0x64e82c811ee5e912c0f97ac1165c73d593654a6fc434a470452d8bca6ec98424;
         bytes32 _s = 0x5a209fe6efcf6e06ec96620fd968d6331f5e02e5db757ea2a58229c9b3c033ed;
         uint8 _v = 28;
@@ -325,24 +300,24 @@ contract YAMv3Test is DSTest {
         hevm.warp(604411200);
         hevm.warp(now + 2 hours);
         assertEq(now, 604411200 + 2 hours);
-        yamV3.permit(cal, del, 0, 1, true, _v, _r, _s);
+        yamV3.permit(cal, del, 10000000, 1, _v, _r, _s);
     }
 
     function testFail_Replay() public {
         uint nonce = 0;
         uint deadline = 0;
-        address cal = 0x29C76e6aD8f28BB1004902578Fb108c507Be341b;
+        address cal = 0x683A78bA1f6b25E29fbBC9Cd1BFA29A51520De84;
         address del = 0xdd2d5D3f7f1b35b7A0601D6A00DbB7D44Af58479;
-        bytes32 r = 0xc7a9f6e53ade2dc3715e69345763b9e6e5734bfe6b40b8ec8e122eb379f07e5b;
-        bytes32 s = 0x14cb2f908ca580a74089860a946f56f361d55bdb13b6ce48a998508b0fa5e776;
-        uint8 v = 27;
+        bytes32 r = 0xc80d2a9c3577543ad49872ca4f4604afbd6a132e8ee0e220de00e05325087c50;
+        bytes32 s = 0x2663f17ce7c7de6f7009690fc91c72ef44fca99c839524acaa4393639876d1b8;
+        uint8 v = 28;
         bytes32 _r = 0x64e82c811ee5e912c0f97ac1165c73d593654a6fc434a470452d8bca6ec98424;
         bytes32 _s = 0x5a209fe6efcf6e06ec96620fd968d6331f5e02e5db757ea2a58229c9b3c033ed;
         uint8 _v = 28;
 
         uint256 amount = 10**18;
-        yamV3.permit(cal, del, 0, 0, true, v, r, s);
-        yamV3.permit(cal, del, 0, 0, true, v, r, s);
+        yamV3.permit(cal, del, 10000000, now + 100, v, r, s);
+        yamV3.permit(cal, del, 10000000, now + 100, v, r, s);
     }
 
     function test_direct_rebase() public {

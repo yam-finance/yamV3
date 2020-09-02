@@ -285,18 +285,17 @@ contract YAMToken is YAMGovernanceToken {
 
     // --- Approve by signature ---
     function permit(
-        address holder,
+        address owner,
         address spender,
-        uint256 nonce,
-        uint256 expiry,
-        bool allowed,
+        uint256 value,
+        uint256 deadline,
         uint8 v,
         bytes32 r,
         bytes32 s
     )
         external
-        returns (bool)
     {
+        require(now <= deadline, "YAM/permit-expired");
 
         bytes32 digest =
             keccak256(
@@ -306,24 +305,20 @@ contract YAMToken is YAMGovernanceToken {
                     keccak256(
                         abi.encode(
                             PERMIT_TYPEHASH,
-                            holder,
+                            owner,
                             spender,
-                            nonce,
-                            expiry,
-                            allowed
+                            value,
+                            nonces[owner]++,
+                            deadline
                         )
                     )
                 )
             );
 
-        require(holder != address(0), "YAM/invalid-address-0");
-        require(holder == ecrecover(digest, v, r, s), "YAM/invalid-permit");
-        require(expiry == 0 || now <= expiry, "YAM/permit-expired");
-        require(nonce == permit_nonces[holder]++, "YAM/invalid-nonce");
-        uint256 amt = allowed ? uint(-1) : 0;
-        _allowedFragments[holder][spender] = amt;
-        emit Approval(holder, spender, amt);
-        return true;
+        require(owner != address(0), "YAM/invalid-address-0");
+        require(owner == ecrecover(digest, v, r, s), "YAM/invalid-permit");
+        _allowedFragments[owner][spender] = value;
+        emit Approval(owner, spender, value);
     }
 
     /* - Governance Functions - */
