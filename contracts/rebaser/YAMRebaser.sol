@@ -144,6 +144,13 @@ contract YAMRebaser {
     /// @notice last TWAP cumulative price;
     uint256 public priceCumulativeLast;
 
+
+    /// @notice address to send part of treasury to
+    address public public_goods;
+
+    /// @notice address to send part of treasury to
+    uint256 public public_goods_perc;
+
     // Max slippage factor when buying reserve token. Magic number based on
     // the fact that uniswap is a constant product. Therefore,
     // targeting a % max slippage can be achieved by using a single precomputed
@@ -154,11 +161,16 @@ contract YAMRebaser {
     /// @notice Whether or not this token is first in uniswap YAM<>Reserve pair
     bool public isToken0;
 
+
+    uint256 public constant BASE = 10**18;
+
     constructor(
         address yamAddress_,
         address reserveToken_,
         address uniswap_factory,
-        address reservesContract_
+        address reservesContract_,
+        address public_goods_,
+        uint256 public_goods_perc_
     )
         public
     {
@@ -186,12 +198,15 @@ contract YAMRebaser {
 
           yamAddress = yamAddress_;
 
+          public_goods = public_goods_;
+          public_goods_perc = public_goods_perc_;
+
           // target 10% slippage
           // 5.4%
           maxSlippageFactor = 5409258 * 10**10;
 
           // 1 YYCRV
-          targetRate = 10**18;
+          targetRate = BASE;
 
           // twice daily rebase, with targeting reaching peg in 5 days
           rebaseLag = 10;
@@ -411,7 +426,7 @@ contract YAMRebaser {
         YAMTokenInterface yam = YAMTokenInterface(yamAddress);
 
         if (positive) {
-            require(yam.yamsScalingFactor().mul(uint256(10**18).add(indexDelta)).div(10**18) < yam.maxScalingFactor(), "new scaling factor will be too big");
+            require(yam.yamsScalingFactor().mul(BASE.add(indexDelta)).div(BASE) < yam.maxScalingFactor(), "new scaling factor will be too big");
         }
 
 
@@ -420,9 +435,9 @@ contract YAMRebaser {
         uint256 mintAmount;
         // reduce indexDelta to account for minting
         if (positive) {
-            uint256 mintPerc = indexDelta.mul(rebaseMintPerc).div(10**18);
+            uint256 mintPerc = indexDelta.mul(rebaseMintPerc).div(BASE);
             indexDelta = indexDelta.sub(mintPerc);
-            mintAmount = currSupply.mul(mintPerc).div(10**18);
+            mintAmount = currSupply.mul(mintPerc).div(BASE);
         }
 
         // rebase
@@ -470,11 +485,25 @@ contract YAMRebaser {
 
         // transfer reserve token to reserves
         if (isToken0) {
-            SafeERC20.safeTransfer(IERC20(reserveToken), reservesContract, amount1);
-            emit TreasuryIncreased(amount1, uniVars.yamsToUni, uniVars.amountFromReserves, uniVars.mintToReserves);
+            if (public_goods != address(0) && public_goods_perc > 0) {
+              uint256 amount_to_public_goods = amount1.mul(public_goods_perc).div(BASE);
+              SafeERC20.safeTransfer(IERC20(reserveToken), reservesContract, amount1.sub(amount_to_public_goods));
+              SafeERC20.safeTransfer(IERC20(reserveToken), public_goods, amount_to_public_goods);
+              emit TreasuryIncreased(amount1.sub(amount_to_public_goods), uniVars.yamsToUni, uniVars.amountFromReserves, uniVars.mintToReserves);
+            } else {
+              SafeERC20.safeTransfer(IERC20(reserveToken), reservesContract, amount1);
+              emit TreasuryIncreased(amount1, uniVars.yamsToUni, uniVars.amountFromReserves, uniVars.mintToReserves);
+            }
         } else {
+          if (public_goods != address(0) && public_goods_perc > 0) {
+            uint256 amount_to_public_goods = amount0.mul(public_goods_perc).div(BASE);
+            SafeERC20.safeTransfer(IERC20(reserveToken), reservesContract, amount0.sub(amount_to_public_goods));
+            SafeERC20.safeTransfer(IERC20(reserveToken), public_goods, amount_to_public_goods);
+            emit TreasuryIncreased(amount0.sub(amount_to_public_goods), uniVars.yamsToUni, uniVars.amountFromReserves, uniVars.mintToReserves);
+          } else {
             SafeERC20.safeTransfer(IERC20(reserveToken), reservesContract, amount0);
             emit TreasuryIncreased(amount0, uniVars.yamsToUni, uniVars.amountFromReserves, uniVars.mintToReserves);
+          }
         }
     }
 
@@ -578,7 +607,7 @@ contract YAMRebaser {
         if (isToken0) {
           if (offPegPerc >= 10**17) {
               // cap slippage
-              return token0.mul(maxSlippageFactor).div(10**18);
+              return token0.mul(maxSlippageFactor).div(BASE);
           } else {
               // in the 5-10% off peg range, slippage is essentially 2*x (where x is percentage of pool to buy).
               // all we care about is not pushing below the peg, so underestimate
@@ -586,13 +615,13 @@ contract YAMRebaser {
               // should be ~= offPegPerc * 2 / 3, which will keep us above the peg
               //
               // this is a conservative heuristic
-              return token0.mul(offPegPerc / 3).div(10**18);
+              return token0.mul(offPegPerc / 3).div(BASE);
           }
         } else {
             if (offPegPerc >= 10**17) {
-                return token1.mul(maxSlippageFactor).div(10**18);
+                return token1.mul(maxSlippageFactor).div(BASE);
             } else {
-                return token1.mul(offPegPerc / 3).div(10**18);
+                return token1.mul(offPegPerc / 3).div(BASE);
             }
         }
     }
@@ -687,7 +716,7 @@ contract YAMRebaser {
         priceCumulativeLast = priceCumulative;
         blockTimestampLast = blockTimestamp;
 
-        return FixedPoint.decode144(FixedPoint.mul(priceAverage, 10**18));
+        return FixedPoint.decode144(FixedPoint.mul(priceAverage, BASE));
     }
 
     /**
@@ -709,7 +738,7 @@ contract YAMRebaser {
         // cumulative price is in (uq112x112 price * seconds) units so we simply wrap it after division by time elapsed
         FixedPoint.uq112x112 memory priceAverage = FixedPoint.uq112x112(uint224((priceCumulative - priceCumulativeLast) / timeElapsed));
 
-        return FixedPoint.decode144(FixedPoint.mul(priceAverage, 10**18));
+        return FixedPoint.decode144(FixedPoint.mul(priceAverage, BASE));
     }
 
     /**
@@ -817,9 +846,9 @@ contract YAMRebaser {
 
         // indexDelta =  (rate - targetRate) / targetRate
         if (rate > targetRate) {
-            return (rate.sub(targetRate).mul(10**18).div(targetRate), true);
+            return (rate.sub(targetRate).mul(BASE).div(targetRate), true);
         } else {
-            return (targetRate.sub(rate).mul(10**18).div(targetRate), false);
+            return (targetRate.sub(rate).mul(BASE).div(targetRate), false);
         }
     }
 

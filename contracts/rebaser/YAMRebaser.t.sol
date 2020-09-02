@@ -138,7 +138,9 @@ contract YAMRebaserTest is DSTest {
             address(yamV3),
             yyCRV,
             uniFact,
-            address(user)
+            address(user),
+            address(0x232C95A72F132392171831cEcEc8c1161975c398),
+            10**16 // 1%
         );
 
         yamV3._setMigrator(address(migration));
@@ -271,7 +273,7 @@ contract YAMRebaserTest is DSTest {
         neg_rebase();
     }
 
-    /* function test_double_negative_rebase() public {
+    function test_double_negative_rebase() public {
         init_twap();
         hevm.warp(now + rebaser.rebaseDelay());
         rebaser.activate_rebasing();
@@ -287,7 +289,7 @@ contract YAMRebaserTest is DSTest {
         assertTrue(rebaser.rebasingActive());
         pos_rebase();
         pos_rebase();
-    } */
+    }
 
     // long running
     /* function test_rebase_scenario() public {
@@ -307,9 +309,9 @@ contract YAMRebaserTest is DSTest {
       uint256 twap = rebaser.getCurrentTWAP();
       while (twap >= 95 * 10**16) {
         push_price_down();
+        hevm.warp(now + 12 hours);
         twap = rebaser.getCurrentTWAP();
       }
-      hevm.warp(now + 12 hours);
       assertTrue(rebaser.getCurrentTWAP() < 95 * 10**16);
 
       uint256 offset = rebaser.rebaseWindowOffsetSec();
@@ -364,10 +366,11 @@ contract YAMRebaserTest is DSTest {
       uint256 twap = rebaser.getCurrentTWAP();
       while (twap <= 105 * 10**16) {
         push_price_up();
+        hevm.warp(now + 12 hours);
         twap = rebaser.getCurrentTWAP();
       }
 
-      hevm.warp(now + 12 hours + 1);
+
 
       assertTrue(rebaser.getCurrentTWAP() > 105 * 10**16);
 
