@@ -431,7 +431,7 @@ contract YAMToken is YAMGovernanceToken {
         }
 
         // update total supply, correctly
-        totalSupply = initSupply.mul(yamsScalingFactor).div(BASE);
+        totalSupply = initSupply.mul(yamsScalingFactor).div(internalDecimals);
 
         emit Rebase(epoch, prevYamsScalingFactor, yamsScalingFactor);
         return totalSupply;
@@ -449,6 +449,7 @@ contract YAMToken is YAMGovernanceToken {
     {
         // transfer to
         SafeERC20.safeTransfer(IERC20(token), to, amount);
+        return true;
     }
 }
 
@@ -483,9 +484,5 @@ contract YAM is YAMToken {
                 address(this)
             )
         );
-
-        // owner renounces ownership after deployment as they need to set
-        // rebaser and incentivizer
-        // gov = gov_;
     }
 }

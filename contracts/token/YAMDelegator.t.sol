@@ -25,6 +25,10 @@ contract User {
         yamV3.transfer(to, amount);
     }
 
+    function doRescueTokens(YAMDelegator yamV3, address token, address to, uint256 amount) external {
+        yamV3.rescueTokens(token, to, amount);
+    }
+
     function doMint(YAMDelegator yamV3, address to, uint256 amount) external {
         yamV3.mint(to, amount);
     }
@@ -157,13 +161,13 @@ contract YAMv3Test is DSTest {
 
     function test_mintNormal() public {
         uint256 amount = 10**18;
-        uint256 ctr = 1;
+        uint256 ctr = 0;
         uint256 starting_bal = yamV3.balanceOf(me);
 
         // rebaser
         yamV3._setRebaser(address(user));
         assertEq(yamV3.rebaser(), address(user));
-        user.doMint(yamV3, me, 10**18);
+        user.doMint(yamV3, me, amount);
         ctr++;
         assertEq(yamV3.balanceOf(me), starting_bal + amount*ctr);
         yamV3._setRebaser(address(me));
@@ -172,7 +176,7 @@ contract YAMv3Test is DSTest {
         // incentivizer
         yamV3._setIncentivizer(address(user));
         assertEq(yamV3.incentivizer(), address(user));
-        user.doMint(yamV3, me, 10**18);
+        user.doMint(yamV3, me, amount);
         ctr++;
         assertEq(yamV3.balanceOf(me), starting_bal + amount*ctr);
         yamV3._setIncentivizer(address(me));
@@ -181,7 +185,7 @@ contract YAMv3Test is DSTest {
         // gov
         yamV3._setPendingGov(address(user));
         user.doAcceptGov(yamV3);
-        user.doMint(yamV3, me, 10**18);
+        user.doMint(yamV3, me, amount);
         ctr++;
         assertEq(yamV3.balanceOf(me), starting_bal + amount*ctr);
     }
@@ -263,14 +267,14 @@ contract YAMv3Test is DSTest {
         uint256 amount = 10**18;
 
         yamV3.transfer(cal, amount);
-        assertEq(yamV3.nonces(cal), 0);
+        assertEq(yamV3.permit_nonces(cal), 0);
         assertEq(yamV3.allowance(cal, del), 0);
         yamV3.permit(cal, del, 0, 0, true, v, r, s);
         assertEq(yamV3.allowance(cal, del), uint(-1));
-        assertEq(yamV3.nonces(cal),1);
+        assertEq(yamV3.permit_nonces(cal), 1);
     }
 
-    function test_FailPermitAddress0() public {
+    function testFail_PermitAddress0() public {
         uint nonce = 0;
         uint deadline = 0;
         address cal = 0x29C76e6aD8f28BB1004902578Fb108c507Be341b;
@@ -302,10 +306,10 @@ contract YAMv3Test is DSTest {
         assertEq(now, 604411200);
         yamV3.permit(cal, del, 0, 604411200 + 1 hours, true, _v, _r, _s);
         assertEq(yamV3.allowance(cal, del),uint(-1));
-        assertEq(yamV3.nonces(cal),1);
+        assertEq(yamV3.permit_nonces(cal),1);
     }
 
-    function test_FailPermitWithExpiry() public {
+    function testFail_PermitWithExpiry() public {
         uint nonce = 0;
         uint deadline = 0;
         address cal = 0x29C76e6aD8f28BB1004902578Fb108c507Be341b;
@@ -324,7 +328,7 @@ contract YAMv3Test is DSTest {
         yamV3.permit(cal, del, 0, 1, true, _v, _r, _s);
     }
 
-    function test_FailReplay() public {
+    function testFail_Replay() public {
         uint nonce = 0;
         uint deadline = 0;
         address cal = 0x29C76e6aD8f28BB1004902578Fb108c507Be341b;
@@ -359,12 +363,13 @@ contract YAMv3Test is DSTest {
       assertEq(yamV3.initSupply(), underlying);
 
       // negative rebase
-      /* totalSupply = yamV3.rebase(2, 10**17, false);
+      totalSupply = yamV3.rebase(2, 10**17, false);
 
       scalingFactor = yamV3.yamsScalingFactor();
-      assertEq(scalingFactor, 10**18);
+      assertEq(scalingFactor, 99*10**16);
 
-      assertEq(totalSupply, balance.mul(scalingFactor).div(BASE));
+      // rounding error
+      assertEq(totalSupply, balance.mul(scalingFactor).div(BASE) + 1);
 
       assertEq(yamV3.initSupply(), underlying);
 
@@ -372,11 +377,11 @@ contract YAMv3Test is DSTest {
       totalSupply = yamV3.rebase(3, 0, false);
 
       scalingFactor = yamV3.yamsScalingFactor();
-      assertEq(scalingFactor, 10**18);
+      assertEq(scalingFactor, 99*10**16);
 
-      assertEq(totalSupply, balance.mul(scalingFactor).div(BASE));
+      assertEq(totalSupply, balance.mul(scalingFactor).div(BASE) + 1);
 
-      assertEq(yamV3.initSupply(), underlying); */
+      assertEq(yamV3.initSupply(), underlying);
     }
 
     function test_setRoles() public {
@@ -393,8 +398,15 @@ contract YAMv3Test is DSTest {
     }
 
     function test_rescueTokens() public {
+        assertEq(yamV3.gov(), me);
         SafeERC20.safeTransfer(IERC20(dai), address(yamV3), 100);
+        bool success = yamV3.rescueTokens(dai, me, 100);
+        assertTrue(success);
+    }
 
-        assertTrue(yamV3.rescueTokens(dai, me, 100));
+    function testFail_rescueTokens() public {
+        assertEq(yamV3.gov(), me);
+        SafeERC20.safeTransfer(IERC20(dai), address(yamV3), 100);
+        user.doRescueTokens(yamV3, dai, me, 100);
     }
 }

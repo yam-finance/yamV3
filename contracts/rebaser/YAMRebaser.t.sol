@@ -63,6 +63,10 @@ contract User {
   function do_rebase(YAMRebaser rebaser) external {
       rebaser.rebase();
   }
+
+  function do_approve(YAMDelegator yamV3, YAMRebaser rebaser) external {
+      yamV3.approve(address(rebaser), uint256(-1));
+  }
 }
 
 contract YAMRebaserTest is DSTest {
@@ -157,7 +161,7 @@ contract YAMRebaserTest is DSTest {
         yamV3._setRebaser(address(rebaser));
 
         yamV3.mint(me, 100000 * 10**18);
-
+        user.do_approve(yamV3, rebaser);
     }
 
     //
@@ -256,27 +260,211 @@ contract YAMRebaserTest is DSTest {
         hevm.warp(now + rebaser.rebaseDelay());
         rebaser.activate_rebasing();
         assertTrue(rebaser.rebasingActive());
-        push_price_up();
-        push_price_up();
-        hevm.warp(now + 12 hours);
-        assertTrue(rebaser.getCurrentTWAP() > 105 * 10**16);
+        pos_rebase();
+    }
 
-        uint256 offset = rebaser.rebaseWindowOffsetSec();
-        uint256 interval = rebaser.minRebaseTimeIntervalSec();
-        uint256 waitTime;
-        if (now % interval > offset) {
-          waitTime = (interval - (now % interval)) + offset;
-        } else {
-          waitTime = offset - (now % interval);
-        }
-        hevm.warp(now + waitTime);
-        rebaser.rebase();
-        assertTrue(true);
+    function test_negative_rebase() public {
+        init_twap();
+        hevm.warp(now + rebaser.rebaseDelay());
+        rebaser.activate_rebasing();
+        assertTrue(rebaser.rebasingActive());
+        neg_rebase();
+    }
+
+    function test_double_negative_rebase() public {
+        init_twap();
+        hevm.warp(now + rebaser.rebaseDelay());
+        rebaser.activate_rebasing();
+        assertTrue(rebaser.rebasingActive());
+        neg_rebase();
+        neg_rebase();
+    }
+
+    function test_double_pos_rebase() public {
+        init_twap();
+        hevm.warp(now + rebaser.rebaseDelay());
+        rebaser.activate_rebasing();
+        assertTrue(rebaser.rebasingActive());
+        pos_rebase();
+        pos_rebase();
+    }
+
+    // long running
+    /* function test_rebase_scenario() public {
+        init_twap();
+        hevm.warp(now + rebaser.rebaseDelay());
+        rebaser.activate_rebasing();
+        assertTrue(rebaser.rebasingActive());
+        pos_rebase();
+        pos_rebase();
+        neg_rebase();
+        neg_rebase();
+        pos_rebase();
+    } */
+
+
+    function neg_rebase() internal {
+      uint256 twap = rebaser.getCurrentTWAP();
+      while (twap >= 95 * 10**16) {
+        push_price_down();
+        twap = rebaser.getCurrentTWAP();
+      }
+      hevm.warp(now + 12 hours);
+      assertTrue(rebaser.getCurrentTWAP() < 95 * 10**16);
+
+      uint256 offset = rebaser.rebaseWindowOffsetSec();
+      uint256 interval = rebaser.minRebaseTimeIntervalSec();
+      uint256 waitTime;
+      if (now % interval > offset) {
+        waitTime = (interval - (now % interval)) + offset;
+      } else {
+        waitTime = offset - (now % interval);
+      }
+      hevm.warp(now + waitTime);
+      uint256 epoch = rebaser.epoch();
+      uint256 pre_scalingFactor = yamV3.yamsScalingFactor();
+
+      address yyCRVPool = pairFor(uniFact, address(yamV3), yyCRV);
+      uint256 pre_balance = yamV3.balanceOf(me)
+                            + yamV3.balanceOf(yyCRVPool)
+                            + yamV3.balanceOf(address(user));
+      uint256 pre_underlying = yamV3.balanceOfUnderlying(me)
+                            + yamV3.balanceOfUnderlying(yyCRVPool)
+                            + yamV3.balanceOfUnderlying(address(user));
+
+      rebaser.rebase();
+      assertEq(rebaser.epoch(), epoch + 1);
+      assertEq(rebaser.blockTimestampLast(), now);
+
+      // negative rebase
+      uint256 balance = yamV3.balanceOf(me)
+                            + yamV3.balanceOf(yyCRVPool)
+                            + yamV3.balanceOf(address(user));
+      uint256 underlying = yamV3.balanceOfUnderlying(me)
+                            + yamV3.balanceOfUnderlying(yyCRVPool)
+                            + yamV3.balanceOfUnderlying(address(user));
+
+      assertTrue(pre_balance > balance);
+      assertEq(pre_underlying, underlying);
+
+      uint256 scalingFactor = yamV3.yamsScalingFactor();
+      assertTrue(scalingFactor < pre_scalingFactor);
+
+      // there can be rounding errors here
+      assertTrue(yamV3.totalSupply() - balance < 5);
+
+      assertEq(yamV3.totalSupply(), yamV3.initSupply().mul(scalingFactor).div(10**24));
+
+      assertEq(yamV3.initSupply(), underlying);
     }
 
 
 
+    function pos_rebase() internal {
+      uint256 twap = rebaser.getCurrentTWAP();
+      while (twap <= 105 * 10**16) {
+        push_price_up();
+        twap = rebaser.getCurrentTWAP();
+      }
 
+      hevm.warp(now + 12 hours + 1);
+
+      assertTrue(rebaser.getCurrentTWAP() > 105 * 10**16);
+
+      uint256 offset = rebaser.rebaseWindowOffsetSec();
+      uint256 interval = rebaser.minRebaseTimeIntervalSec();
+      uint256 waitTime;
+      if (now % interval > offset) {
+        waitTime = (interval - (now % interval)) + offset;
+      } else {
+        waitTime = offset - (now % interval);
+      }
+      hevm.warp(now + waitTime);
+      uint256 epoch = rebaser.epoch();
+      uint256 pre_scalingFactor = yamV3.yamsScalingFactor();
+
+      address yyCRVPool = pairFor(uniFact, address(yamV3), yyCRV);
+      uint256 pre_balance = yamV3.balanceOf(me)
+                            + yamV3.balanceOf(yyCRVPool)
+                            + yamV3.balanceOf(address(user));
+      uint256 pre_underlying = yamV3.balanceOfUnderlying(me)
+                            + yamV3.balanceOfUnderlying(yyCRVPool)
+                            + yamV3.balanceOfUnderlying(address(user));
+
+      rebaser.rebase();
+      assertEq(rebaser.epoch(), epoch + 1);
+      assertEq(rebaser.blockTimestampLast(), now);
+
+      // positive rebase
+      uint256 balance = yamV3.balanceOf(me)
+                            + yamV3.balanceOf(yyCRVPool)
+                            + yamV3.balanceOf(address(user));
+      uint256 underlying = yamV3.balanceOfUnderlying(me)
+                            + yamV3.balanceOfUnderlying(yyCRVPool)
+                            + yamV3.balanceOfUnderlying(address(user));
+
+      assertTrue(pre_balance < balance);
+      assertTrue(pre_underlying < underlying);
+
+      uint256 scalingFactor = yamV3.yamsScalingFactor();
+      assertTrue(scalingFactor > pre_scalingFactor);
+
+      // there can be rounding errors here
+      assertTrue(yamV3.totalSupply() - balance < 5);
+
+      assertEq(yamV3.totalSupply(), yamV3.initSupply().mul(scalingFactor).div(10**24));
+
+      assertEq(yamV3.initSupply(), underlying);
+    }
+
+    function second_pos_rebase() internal {
+      assertTrue(rebaser.getCurrentTWAP() > 105 * 10**16);
+
+      uint256 offset = rebaser.rebaseWindowOffsetSec();
+      uint256 interval = rebaser.minRebaseTimeIntervalSec();
+      uint256 waitTime;
+      if (now % interval > offset) {
+        waitTime = (interval - (now % interval)) + offset;
+      } else {
+        waitTime = offset - (now % interval);
+      }
+      hevm.warp(now + waitTime);
+      uint256 epoch = rebaser.epoch();
+      uint256 pre_scalingFactor = yamV3.yamsScalingFactor();
+
+      address yyCRVPool = pairFor(uniFact, address(yamV3), yyCRV);
+      uint256 pre_balance = yamV3.balanceOf(me)
+                            + yamV3.balanceOf(yyCRVPool)
+                            + yamV3.balanceOf(address(user));
+      uint256 pre_underlying = yamV3.balanceOfUnderlying(me)
+                            + yamV3.balanceOfUnderlying(yyCRVPool)
+                            + yamV3.balanceOfUnderlying(address(user));
+
+      /* assertTrue(rebaser.inRebaseWindow()); */
+      createYYCRV_YAMPool();
+      rebaser.rebase();
+      /* assertEq(rebaser.epoch(), epoch + 1);
+      assertEq(rebaser.blockTimestampLast(), now);
+
+      // positive rebase
+      uint256 balance = yamV3.balanceOf(me)
+                            + yamV3.balanceOf(yyCRVPool)
+                            + yamV3.balanceOf(address(user));
+      uint256 underlying = yamV3.balanceOfUnderlying(me)
+                            + yamV3.balanceOfUnderlying(yyCRVPool)
+                            + yamV3.balanceOfUnderlying(address(user));
+
+      assertTrue(pre_balance < balance);
+      assertTrue(pre_underlying < underlying);
+
+      uint256 scalingFactor = yamV3.yamsScalingFactor();
+      assertTrue(scalingFactor > pre_scalingFactor);
+
+      // there can be rounding errors here
+      assertTrue(yamV3.totalSupply() - balance < 5);
+
+      assertEq(yamV3.initSupply(), underlying); */
+    }
 
     function getYYCRV() internal {
         address[] memory path = new address[](2);
@@ -332,7 +520,9 @@ contract YAMRebaserTest is DSTest {
     }
 
     function push_price_up() internal {
-        /* getYYCRV(); */
+        if (IERC20(yyCRV).balanceOf(me) < 10*10**18) {
+            getYYCRV();
+        }
         address[] memory path = new address[](2);
         path[0] = yyCRV;
         path[1] = address(yamV3);
