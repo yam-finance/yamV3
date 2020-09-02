@@ -127,11 +127,14 @@ contract YAMRebaserTest is DSTest {
         // Create a new migration for testing
         migration = new Migrator();
 
+        // User for testing
+        user = new User();
+
         rebaser = new YAMRebaser(
             address(yamV3),
             yyCRV,
             uniFact,
-            user
+            address(user)
         );
 
         yamV3._setMigrator(address(migration));
@@ -155,8 +158,6 @@ contract YAMRebaserTest is DSTest {
 
         yamV3.mint(me, 100000 * 10**18);
 
-        // User for testing
-        user = new User();
     }
 
     //
@@ -169,7 +170,7 @@ contract YAMRebaserTest is DSTest {
         unis[0] = dai_yam;
         rebaser.addSyncPairs(unis, bals);
         address[] memory pairs = rebaser.getUniSyncPairs();
-        assertEq(pairs[0], dai_yam);
+        assertEq(pairs[1], dai_yam);
     }
 
     function test_setMaxSlippage() public {

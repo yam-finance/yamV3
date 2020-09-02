@@ -210,6 +210,27 @@ contract YAMRebaser {
 
     }
 
+
+    function removeUniPair(uint256 index) public onlyGov {
+        if (index >= uniSyncPairs.length) return;
+
+        for (uint i = index; i < uniSyncPairs.length-1; i++){
+            uniSyncPairs[i] = uniSyncPairs[i+1];
+        }
+        delete uniSyncPairs[uniSyncPairs.length-1];
+        uniSyncPairs.length--;
+    }
+
+    function removeBalPair(uint256 index) public onlyGov {
+        if (index >= balGulpPairs.length) return;
+
+        for (uint i = index; i < balGulpPairs.length-1; i++){
+            balGulpPairs[i] = balGulpPairs[i+1];
+        }
+        delete balGulpPairs[balGulpPairs.length-1];
+        balGulpPairs.length--;
+    }
+
     /**
     @notice Adds pairs to sync
     *
@@ -226,7 +247,6 @@ contract YAMRebaser {
             balGulpPairs.push(balGulpPairs_[i]);
         }
     }
-
 
     /**
     @notice Uniswap synced pairs
