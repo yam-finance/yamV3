@@ -34,9 +34,15 @@ contract Migrator is Context, Ownable {
 
     uint256 public constant vestingDuration = 30 days;
 
+    uint256 public constant delegatorVestingDuration = 90 days;
+
     uint256 public constant startTime = 1600560000; // TBD! Sunday, September 20, 2020 12:00:00 AM
 
     uint256 public constant BASE = 10**18;
+
+    mapping(address => uint256) public delegator_vesting;
+
+    mapping(address => uint256) public delegator_claimed;
 
     mapping(address => uint256) public vesting;
 
@@ -70,17 +76,21 @@ contract Migrator is Context, Ownable {
       // completion percentage of vesting
       uint256 vestedPerc = now.sub(startTime).mul(BASE).div(vestingDuration);
 
+      uint256 delegatorVestedPerc = now.sub(startTime).mul(BASE).div(delegatorVestingDuration);
+
       // add to total vesting
-      uint256 totalVesting = vesting[_msgSender()];
+      uint256 totalVesting = vesting[who];
 
       // get redeemable total vested by checking how much time has passed
       uint256 totalVestingRedeemable = totalVesting.mul(vestedPerc).div(BASE);
 
+      uint256 totalVestingDelegator = delegator_vesting[who].mul(delegatorVestedPerc).div(BASE);
+
       // get already claimed vested rewards
-      uint256 alreadyClaimed = claimed[_msgSender()];
+      uint256 alreadyClaimed = claimed[who].add(delegator_claimed[who]);
 
       // get current redeemable
-      return totalVestingRedeemable.sub(alreadyClaimed);
+      return totalVestingRedeemable.add(totalVestingDelegator).sub(alreadyClaimed);
     }
 
 
@@ -103,6 +113,9 @@ contract Migrator is Context, Ownable {
         // completion percentage of vesting
         uint256 vestedPerc = now.sub(startTime).mul(BASE).div(vestingDuration);
 
+        // completion percentage of delegator vesting
+        uint256 delegatorVestedPerc = now.sub(startTime).mul(BASE).div(delegatorVestingDuration);
+
         // gets the yamValue for a user.
         uint256 yamValue = YAMv2(yamV2).balanceOf(_msgSender());
 
@@ -122,17 +135,28 @@ contract Migrator is Context, Ownable {
             // get redeemable total vested by checking how much time has passed
             uint256 totalVestingRedeemable = totalVesting.mul(vestedPerc).div(BASE);
 
+            uint256 totalVestingDelegator = delegator_vesting[_msgSender()].mul(delegatorVestedPerc).div(BASE);
+
             // get already claimed
             uint256 alreadyClaimed = claimed[_msgSender()];
+
+            // get already claimed delegator
+            uint256 alreadyClaimedDelegator = delegator_claimed[_msgSender()];
 
             // get current redeemable
             uint256 currVested = totalVestingRedeemable.sub(alreadyClaimed);
 
+            // get current redeemable delegator
+            uint256 currVestedDelegator = totalVestingDelegator.sub(alreadyClaimedDelegator);
+
             // add instant redeemable to current redeemable to get mintAmount
-            mintAmount = halfRedeemable.add(currVested);
+            mintAmount = halfRedeemable.add(currVested).add(currVestedDelegator);
 
             // update claimed
             claimed[_msgSender()] = claimed[_msgSender()].add(currVested);
+
+            // update delegator rewards claimed
+            delegator_claimed[_msgSender()] = delegator_claimed[_msgSender()].add(currVestedDelegator);
         }
 
 
@@ -156,23 +180,37 @@ contract Migrator is Context, Ownable {
         // completion percentage of vesting
         uint256 vestedPerc = now.sub(startTime).mul(BASE).div(vestingDuration);
 
+        // completion percentage of delegator vesting
+        uint256 delegatorVestedPerc = now.sub(startTime).mul(BASE).div(delegatorVestingDuration);
+
         // add to total vesting
         uint256 totalVesting = vesting[_msgSender()];
 
         // get redeemable total vested by checking how much time has passed
         uint256 totalVestingRedeemable = totalVesting.mul(vestedPerc).div(BASE);
 
+        uint256 totalVestingDelegator = delegator_vesting[_msgSender()].mul(delegatorVestedPerc).div(BASE);
+
         // get already claimed vested rewards
         uint256 alreadyClaimed = claimed[_msgSender()];
+
+        // get already claimed delegator
+        uint256 alreadyClaimedDelegator = delegator_claimed[_msgSender()];
 
         // get current redeemable
         uint256 currVested = totalVestingRedeemable.sub(alreadyClaimed);
 
+        // get current redeemable delegator
+        uint256 currVestedDelegator = totalVestingDelegator.sub(alreadyClaimedDelegator);
+
         // update claimed
         claimed[_msgSender()] = claimed[_msgSender()].add(currVested);
 
+        // update delegator rewards claimed
+        delegator_claimed[_msgSender()] = delegator_claimed[_msgSender()].add(currVestedDelegator);
+
         // mint, this is in raw internalDecimals. Handled by updated _mint function
-        YAMv3(yamV3).mint(_msgSender(), currVested);
+        YAMv3(yamV3).mint(_msgSender(), currVested.add(currVestedDelegator));
     }
 
 
@@ -189,11 +227,11 @@ contract Migrator is Context, Ownable {
         require(delegators.length == amounts.length, "!len");
         if (!under27) {
             for (uint256 i = 0; i < delegators.length; i++) {
-                vesting[delegators[i]] = amounts[i]; // must be on order of 1e24;
+                delegator_vesting[delegators[i]] = amounts[i]; // must be on order of 1e24;
             }
         } else {
             for (uint256 i = 0; i < delegators.length; i++) {
-                vesting[delegators[i]] = 27 * 10**24; // flat distribution;
+                delegator_vesting[delegators[i]] = 27 * 10**24; // flat distribution;
             }
         }
     }

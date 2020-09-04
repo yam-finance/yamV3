@@ -208,7 +208,7 @@ contract YAMMigratorTest is DSTest {
           false
         );
 
-        uint256 vesting = migration.vesting(me);
+        uint256 vesting = migration.delegator_vesting(me);
 
         assertEq(vesting, amounts[0]);
     }
@@ -228,7 +228,7 @@ contract YAMMigratorTest is DSTest {
           true
         );
 
-        uint256 vesting = migration.vesting(me);
+        uint256 vesting = migration.delegator_vesting(me);
 
         assertEq(vesting, 27*10**24);
     }
@@ -282,6 +282,148 @@ contract YAMMigratorTest is DSTest {
         } else {
             assertTrue(false);
         }
+    }
+
+    function test_first_migrate_with_delegator() public {
+        address me = address(this);
+        migration.setV3Address(address(yamV3));
+
+        address[] memory delegators = new address[](1);
+        uint256[] memory amounts = new uint256[](1);
+
+        delegators[0] = me;
+        amounts[0] = 100 * 10**24;
+
+        migration.addDelegatorReward(
+          delegators,
+          amounts,
+          false
+        );
+
+        uint256 vesting = migration.delegator_vesting(me);
+
+        assertEq(vesting, amounts[0]);
+
+        migration.delegatorRewardsDone();
+
+        // Warp to start of migration
+        hevm.warp(migration.startTime());
+
+        // Initial balances
+        uint256 yamV2BalanceStart = yamV2.balanceOf(me);
+        uint256 yamv3BalanceStart = yamV3.balanceOfUnderlying(me);
+
+        vesting = migration.vesting(me);
+
+        uint256 expectedV3 = yamV2BalanceStart / 2;
+
+        // first migration
+        assertEq(vesting, 0);
+
+        if (yamV2BalanceStart > 0) {
+
+            // Approve contract and migrate
+            yamV2.approve(address(migration), uint256(-1));
+            migration.migrate();
+
+            // Balances after migration
+            uint yamV2BalanceEnd = yamV2.balanceOf(me);
+            uint yamV3BalanceEnd = yamV3.balanceOfUnderlying(me);
+            vesting = migration.vesting(me);
+
+            uint256 claimed = migration.claimed(me);
+            assertEq(claimed, 0);
+
+            // Has no more YAMv2
+            assertEq(yamV2BalanceEnd, 0);
+
+            // instant mint is as expected
+            assertEq(expectedV3, yamV3BalanceEnd);
+
+            // vesting is as expected
+            assertEq(expectedV3, vesting);
+        } else {
+            assertTrue(false);
+        }
+    }
+
+    function test_first_migrate_with_delegator_and_time() public {
+        address me = address(this);
+        migration.setV3Address(address(yamV3));
+
+        address[] memory delegators = new address[](1);
+        uint256[] memory amounts = new uint256[](1);
+
+        delegators[0] = me;
+        amounts[0] = 100 * 10**24;
+
+        migration.addDelegatorReward(
+          delegators,
+          amounts,
+          false
+        );
+
+        uint256 vesting = migration.delegator_vesting(me);
+
+        assertEq(vesting, amounts[0]);
+
+        migration.delegatorRewardsDone();
+
+        // Warp to start of migration
+        hevm.warp(migration.startTime());
+
+        // Initial balances
+        uint256 yamV2BalanceStart = yamV2.balanceOf(me);
+        uint256 yamv3BalanceStart = yamV3.balanceOfUnderlying(me);
+
+        vesting = migration.vesting(me);
+
+        uint256 expectedV3 = yamV2BalanceStart / 2;
+
+        // first migration
+        assertEq(vesting, 0);
+
+        if (yamV2BalanceStart > 0) {
+
+            // Approve contract and migrate
+            yamV2.approve(address(migration), uint256(-1));
+            migration.migrate();
+
+            // Balances after migration
+            uint yamV2BalanceEnd = yamV2.balanceOf(me);
+            uint yamV3BalanceEnd = yamV3.balanceOfUnderlying(me);
+            vesting = migration.vesting(me);
+
+            uint256 claimed = migration.claimed(me);
+            assertEq(claimed, 0);
+
+            // Has no more YAMv2
+            assertEq(yamV2BalanceEnd, 0);
+
+            // instant mint is as expected
+            assertEq(expectedV3, yamV3BalanceEnd);
+
+            // vesting is as expected
+            assertEq(expectedV3, vesting);
+        } else {
+            assertTrue(false);
+        }
+
+        // warp to half way
+        hevm.warp(migration.startTime() + 15 days);
+
+
+        uint256 vested = migration.vested(me);
+
+        // half way thru, expect vested == yamV2BalanceStart / 2 / 2
+        uint256 delegator_perc = (uint256(15 days)).mul(10**18).div(migration.delegatorVestingDuration());
+        assertEq(vested, expectedV3 / 2 + amounts[0].mul(delegator_perc).div(10**18));
+
+        migration.claimVested();
+
+        uint yamV3BalanceEnd = yamV3.balanceOfUnderlying(me);
+
+        assertEq(expectedV3 + expectedV3 / 2 + amounts[0].mul(delegator_perc).div(10**18), yamV3BalanceEnd);
     }
 
     function test_double_migrate() public {
