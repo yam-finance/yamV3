@@ -78,6 +78,13 @@ contract Migrator is Context, Ownable {
 
       uint256 delegatorVestedPerc = now.sub(startTime).mul(BASE).div(delegatorVestingDuration);
 
+      if (vestedPerc > BASE) {
+          vestedPerc = BASE;
+      }
+      if (delegatorVestedPerc > BASE) {
+          delegatorVestedPerc = BASE;
+      }
+
       // add to total vesting
       uint256 totalVesting = vesting[who];
 
@@ -115,6 +122,13 @@ contract Migrator is Context, Ownable {
 
         // completion percentage of delegator vesting
         uint256 delegatorVestedPerc = now.sub(startTime).mul(BASE).div(delegatorVestingDuration);
+
+        if (vestedPerc > BASE) {
+            vestedPerc = BASE;
+        }
+        if (delegatorVestedPerc > BASE) {
+            delegatorVestedPerc = BASE;
+        }
 
         // gets the yamValue for a user.
         uint256 yamValue = YAMv2(yamV2).balanceOf(_msgSender());
@@ -182,6 +196,13 @@ contract Migrator is Context, Ownable {
 
         // completion percentage of delegator vesting
         uint256 delegatorVestedPerc = now.sub(startTime).mul(BASE).div(delegatorVestingDuration);
+
+        if (vestedPerc > BASE) {
+            vestedPerc = BASE;
+        }
+        if (delegatorVestedPerc > BASE) {
+          delegatorVestedPerc = BASE;
+        }
 
         // add to total vesting
         uint256 totalVesting = vesting[_msgSender()];
