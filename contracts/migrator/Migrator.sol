@@ -70,9 +70,6 @@ contract Migrator is Context, Ownable {
 
 
     function vested(address who) public view returns (uint256) {
-      // end - now / end = percent complete
-      uint256 end = startTime.add(vestingDuration);
-
       // completion percentage of vesting
       uint256 vestedPerc = now.sub(startTime).mul(BASE).div(vestingDuration);
 
