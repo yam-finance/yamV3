@@ -148,6 +148,13 @@ contract YAMv3Test is DSTest {
     // TESTS
     //
 
+    function test_delegateView() public {
+        yamV3.approve(address(user), uint256(-1));
+        uint256 allowance = yamV3.allowance(me, address(user));
+        assertEq(allowance, uint256(-1));
+    }
+
+
     function testFail_mint() public {
         // fail
         user.doMint(yamV3, me, 10**18);
@@ -211,9 +218,10 @@ contract YAMv3Test is DSTest {
         balance = yamV3.balanceOf(me);
         underlying = yamV3.balanceOfUnderlying(me);
         uint256 other_balance = yamV3.balanceOf(address(user));
-        uint256 other_underlying= yamV3.balanceOfUnderlying(address(user));
+        uint256 other_underlying = yamV3.balanceOfUnderlying(address(user));
         assertEq(pre_balance - amount, balance);
         assertEq(other_balance, amount);
+        assertEq(other_underlying, yamAmount);
         assertEq(pre_underlying - yamAmount, underlying);
     }
 
@@ -236,9 +244,10 @@ contract YAMv3Test is DSTest {
         uint256 balance = yamV3.balanceOf(me);
         uint256 underlying = yamV3.balanceOfUnderlying(me);
         uint256 other_balance = yamV3.balanceOf(address(user));
-        uint256 other_underlying= yamV3.balanceOfUnderlying(address(user));
+        uint256 other_underlying = yamV3.balanceOfUnderlying(address(user));
         assertEq(pre_balance - amount, balance);
         assertEq(other_balance, amount);
+        assertEq(other_underlying, yamAmount);
         assertEq(pre_underlying - yamAmount, underlying);
     }
 
@@ -270,54 +279,36 @@ contract YAMv3Test is DSTest {
     }
 
     function testFail_PermitAddress0() public {
-        uint nonce = 0;
-        uint deadline = 0;
-        address cal = 0x683A78bA1f6b25E29fbBC9Cd1BFA29A51520De84;
         address del = 0xdd2d5D3f7f1b35b7A0601D6A00DbB7D44Af58479;
         bytes32 r = 0xc80d2a9c3577543ad49872ca4f4604afbd6a132e8ee0e220de00e05325087c50;
         bytes32 s = 0x2663f17ce7c7de6f7009690fc91c72ef44fca99c839524acaa4393639876d1b8;
         uint8 v = 28;
-        bytes32 _r = 0x64e82c811ee5e912c0f97ac1165c73d593654a6fc434a470452d8bca6ec98424;
-        bytes32 _s = 0x5a209fe6efcf6e06ec96620fd968d6331f5e02e5db757ea2a58229c9b3c033ed;
-        uint8 _v = 28;
-        v = 0;
-        yamV3.permit(address(0), del, 10000000, now + 100, v, r, s);
+        uint256 deadline = 1699062789;
+        yamV3.permit(address(0), del, 10000000, deadline, v, r, s);
     }
 
     function testFail_PermitWithExpiry() public {
-        uint nonce = 0;
-        uint deadline = 0;
         address cal = 0x683A78bA1f6b25E29fbBC9Cd1BFA29A51520De84;
         address del = 0xdd2d5D3f7f1b35b7A0601D6A00DbB7D44Af58479;
         bytes32 r = 0xc80d2a9c3577543ad49872ca4f4604afbd6a132e8ee0e220de00e05325087c50;
         bytes32 s = 0x2663f17ce7c7de6f7009690fc91c72ef44fca99c839524acaa4393639876d1b8;
         uint8 v = 28;
-        bytes32 _r = 0x64e82c811ee5e912c0f97ac1165c73d593654a6fc434a470452d8bca6ec98424;
-        bytes32 _s = 0x5a209fe6efcf6e06ec96620fd968d6331f5e02e5db757ea2a58229c9b3c033ed;
-        uint8 _v = 28;
-
-        uint256 amount = 10**18;
+        uint256 deadline = 1699062789;
         hevm.warp(604411200);
         hevm.warp(now + 2 hours);
         assertEq(now, 604411200 + 2 hours);
-        yamV3.permit(cal, del, 10000000, 1, _v, _r, _s);
+        yamV3.permit(cal, del, 10000000, deadline, v, r, s);
     }
 
     function testFail_Replay() public {
-        uint nonce = 0;
-        uint deadline = 0;
         address cal = 0x683A78bA1f6b25E29fbBC9Cd1BFA29A51520De84;
         address del = 0xdd2d5D3f7f1b35b7A0601D6A00DbB7D44Af58479;
         bytes32 r = 0xc80d2a9c3577543ad49872ca4f4604afbd6a132e8ee0e220de00e05325087c50;
         bytes32 s = 0x2663f17ce7c7de6f7009690fc91c72ef44fca99c839524acaa4393639876d1b8;
         uint8 v = 28;
-        bytes32 _r = 0x64e82c811ee5e912c0f97ac1165c73d593654a6fc434a470452d8bca6ec98424;
-        bytes32 _s = 0x5a209fe6efcf6e06ec96620fd968d6331f5e02e5db757ea2a58229c9b3c033ed;
-        uint8 _v = 28;
-
-        uint256 amount = 10**18;
-        yamV3.permit(cal, del, 10000000, now + 100, v, r, s);
-        yamV3.permit(cal, del, 10000000, now + 100, v, r, s);
+        uint256 deadline = 1699062789;
+        yamV3.permit(cal, del, 10000000, deadline, v, r, s);
+        yamV3.permit(cal, del, 10000000, deadline, v, r, s);
     }
 
     function test_direct_rebase() public {

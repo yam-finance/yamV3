@@ -427,55 +427,6 @@ contract YAMRebaserTest is DSTest {
       assertEq(yamV3.initSupply(), underlying);
     }
 
-    function second_pos_rebase() internal {
-      assertTrue(rebaser.getCurrentTWAP() > 105 * 10**16);
-
-      uint256 offset = rebaser.rebaseWindowOffsetSec();
-      uint256 interval = rebaser.minRebaseTimeIntervalSec();
-      uint256 waitTime;
-      if (now % interval > offset) {
-        waitTime = (interval - (now % interval)) + offset;
-      } else {
-        waitTime = offset - (now % interval);
-      }
-      hevm.warp(now + waitTime);
-      uint256 epoch = rebaser.epoch();
-      uint256 pre_scalingFactor = yamV3.yamsScalingFactor();
-
-      address yyCRVPool = pairFor(uniFact, address(yamV3), yyCRV);
-      uint256 pre_balance = yamV3.balanceOf(me)
-                            + yamV3.balanceOf(yyCRVPool)
-                            + yamV3.balanceOf(address(user));
-      uint256 pre_underlying = yamV3.balanceOfUnderlying(me)
-                            + yamV3.balanceOfUnderlying(yyCRVPool)
-                            + yamV3.balanceOfUnderlying(address(user));
-
-      /* assertTrue(rebaser.inRebaseWindow()); */
-      createYYCRV_YAMPool();
-      rebaser.rebase();
-      /* assertEq(rebaser.epoch(), epoch + 1);
-      assertEq(rebaser.blockTimestampLast(), now);
-
-      // positive rebase
-      uint256 balance = yamV3.balanceOf(me)
-                            + yamV3.balanceOf(yyCRVPool)
-                            + yamV3.balanceOf(address(user));
-      uint256 underlying = yamV3.balanceOfUnderlying(me)
-                            + yamV3.balanceOfUnderlying(yyCRVPool)
-                            + yamV3.balanceOfUnderlying(address(user));
-
-      assertTrue(pre_balance < balance);
-      assertTrue(pre_underlying < underlying);
-
-      uint256 scalingFactor = yamV3.yamsScalingFactor();
-      assertTrue(scalingFactor > pre_scalingFactor);
-
-      // there can be rounding errors here
-      assertTrue(yamV3.totalSupply() - balance < 5);
-
-      assertEq(yamV3.initSupply(), underlying); */
-    }
-
     function getYYCRV() internal {
         address[] memory path = new address[](2);
         path[0] = WETH;

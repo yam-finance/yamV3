@@ -36,17 +36,6 @@ contract User {
     function doClaimVested(Migrator migration) external {
         migration.claimVested();
     }
-
-    function doAddDelegatorReward(
-        Migrator migration,
-        address[] calldata delegators,
-        uint256[] calldata amounts,
-        bool under27
-    )
-        external
-    {
-        migration.claimVested();
-    }
 }
 
 contract YAMMigratorTest is DSTest {
@@ -178,7 +167,6 @@ contract YAMMigratorTest is DSTest {
 
     // Cannot migrate before migration begins
     function testFail_add_delegator_after_set() public {
-        address me = address(this);
 
         address[] memory delegators = new address[](2);
         uint256[] memory amounts = new uint256[](2);
@@ -248,7 +236,6 @@ contract YAMMigratorTest is DSTest {
 
         // Initial balances
         uint256 yamV2BalanceStart = yamV2.balanceOf(me);
-        uint256 yamv3BalanceStart = yamV3.balanceOfUnderlying(me);
 
         uint256 vesting = migration.vesting(me);
 
@@ -311,7 +298,6 @@ contract YAMMigratorTest is DSTest {
 
         // Initial balances
         uint256 yamV2BalanceStart = yamV2.balanceOf(me);
-        uint256 yamv3BalanceStart = yamV3.balanceOfUnderlying(me);
 
         vesting = migration.vesting(me);
 
@@ -374,7 +360,6 @@ contract YAMMigratorTest is DSTest {
 
         // Initial balances
         uint256 yamV2BalanceStart = yamV2.balanceOf(me);
-        uint256 yamv3BalanceStart = yamV3.balanceOfUnderlying(me);
 
         vesting = migration.vesting(me);
 
@@ -437,7 +422,6 @@ contract YAMMigratorTest is DSTest {
 
         // Initial balances
         uint256 yamV2BalanceStart = yamV2.balanceOf(me);
-        uint256 yamv3BalanceStart = yamV3.balanceOfUnderlying(me);
 
         uint256 vesting = migration.vesting(me);
 
@@ -474,7 +458,6 @@ contract YAMMigratorTest is DSTest {
 
         getYAMv2();
         uint256 yamV2BalanceStart_second = yamV2.balanceOf(me);
-        uint256 yamv3BalanceStart_second = yamV3.balanceOfUnderlying(me);
 
         vesting = migration.vesting(me);
 
@@ -516,7 +499,6 @@ contract YAMMigratorTest is DSTest {
 
         // Initial balances
         uint256 yamV2BalanceStart = yamV2.balanceOf(me);
-        uint256 yamv3BalanceStart = yamV3.balanceOfUnderlying(me);
 
         uint256 vesting = migration.vesting(me);
 
@@ -553,7 +535,6 @@ contract YAMMigratorTest is DSTest {
 
         getYAMv2();
         uint256 yamV2BalanceStart_second = yamV2.balanceOf(me);
-        uint256 yamv3BalanceStart_second = yamV3.balanceOfUnderlying(me);
 
         // zoom to half complete
         hevm.warp(now + 15 days);
@@ -597,7 +578,7 @@ contract YAMMigratorTest is DSTest {
 
         // Initial balances
         uint256 yamV2BalanceStart = yamV2.balanceOf(me);
-        uint256 yamv3BalanceStart = yamV3.balanceOfUnderlying(me);
+
         uint256 vesting = migration.vesting(me);
 
         // first migration
@@ -657,7 +638,7 @@ contract YAMMigratorTest is DSTest {
 
         // Initial balances
         uint256 yamV2BalanceStart = yamV2.balanceOf(me);
-        uint256 yamv3BalanceStart = yamV3.balanceOfUnderlying(me);
+
         uint256 vesting = migration.vesting(me);
 
         // first migration
