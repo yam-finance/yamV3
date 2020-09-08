@@ -294,9 +294,8 @@ contract YAMv3Test is DSTest {
         bytes32 s = 0x2663f17ce7c7de6f7009690fc91c72ef44fca99c839524acaa4393639876d1b8;
         uint8 v = 28;
         uint256 deadline = 1699062789;
-        hevm.warp(604411200);
+        hevm.warp(1699062789);
         hevm.warp(now + 2 hours);
-        assertEq(now, 604411200 + 2 hours);
         yamV3.permit(cal, del, 10000000, deadline, v, r, s);
     }
 
