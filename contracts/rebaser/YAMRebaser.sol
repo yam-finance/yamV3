@@ -164,6 +164,10 @@ contract YAMRebaser {
 
     uint256 public constant BASE = 10**18;
 
+    uint256 public constant MAX_SLIPPAGE_PARAM = 1180339 * 10**10; // max ~20% market impact
+
+    uint256 public constant MAX_MINT_PERC_PARAM = 25 * 10**16; // max 25% of rebase can go to treasury
+
     constructor(
         address yamAddress_,
         address reserveToken_,
@@ -300,6 +304,7 @@ contract YAMRebaser {
         public
         onlyGov
     {
+        require(maxSlippageFactor_ < MAX_SLIPPAGE_PARAM);
         uint256 oldSlippageFactor = maxSlippageFactor;
         maxSlippageFactor = maxSlippageFactor_;
         emit NewMaxSlippageFactor(oldSlippageFactor, maxSlippageFactor_);
@@ -314,6 +319,7 @@ contract YAMRebaser {
         public
         onlyGov
     {
+        require(rebaseMintPerc_ < MAX_MINT_PERC_PARAM);
         uint256 oldPerc = rebaseMintPerc;
         rebaseMintPerc = rebaseMintPerc_;
         emit NewRebaseMintPercent(oldPerc, rebaseMintPerc_);
@@ -806,7 +812,7 @@ contract YAMRebaser {
     {
         require(minRebaseTimeIntervalSec_ > 0);
         require(rebaseWindowOffsetSec_ < minRebaseTimeIntervalSec_);
-
+        require(rebaseWindowOffsetSec_ + rebaseWindowLengthSec_ < minRebaseTimeIntervalSec_);
         minRebaseTimeIntervalSec = minRebaseTimeIntervalSec_;
         rebaseWindowOffsetSec = rebaseWindowOffsetSec_;
         rebaseWindowLengthSec = rebaseWindowLengthSec_;
