@@ -615,13 +615,13 @@ contract YAMRebaser {
               // should be ~= offPegPerc * 2 / 3, which will keep us above the peg
               //
               // this is a conservative heuristic
-              return token0.mul(offPegPerc / 3).div(BASE);
+              return token0.mul(offPegPerc).div(3 * BASE);
           }
         } else {
             if (offPegPerc >= 10**17) {
                 return token1.mul(maxSlippageFactor).div(BASE);
             } else {
-                return token1.mul(offPegPerc / 3).div(BASE);
+                return token1.mul(offPegPerc).div(3 * BASE);
             }
         }
     }
