@@ -236,7 +236,6 @@ contract YAMRebaser {
         for (uint i = index; i < uniSyncPairs.length-1; i++){
             uniSyncPairs[i] = uniSyncPairs[i+1];
         }
-        delete uniSyncPairs[uniSyncPairs.length-1];
         uniSyncPairs.length--;
     }
 
@@ -246,7 +245,6 @@ contract YAMRebaser {
         for (uint i = index; i < balGulpPairs.length-1; i++){
             balGulpPairs[i] = balGulpPairs[i+1];
         }
-        delete balGulpPairs[balGulpPairs.length-1];
         balGulpPairs.length--;
     }
 
