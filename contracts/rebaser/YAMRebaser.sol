@@ -176,7 +176,7 @@ contract YAMRebaser {
     {
           minRebaseTimeIntervalSec = 12 hours;
           rebaseWindowOffsetSec = 28800; // 8am/8pm UTC rebases
-          reservesContract = reservesContract_;
+
           (address token0, address token1) = sortTokens(yamAddress_, reserveToken_);
 
           // used for interacting with uniswap
