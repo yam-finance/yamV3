@@ -651,6 +651,9 @@ contract YAMIncentivizer is LPTokenWrapper, IRewardDistributionRecipient {
     uint256 public rewardRate = 0;
     uint256 public lastUpdateTime;
     uint256 public rewardPerTokenStored;
+
+    bool public initialized = false;
+
     mapping(address => uint256) public userRewardPerTokenPaid;
     mapping(address => uint256) public rewards;
 
@@ -750,6 +753,8 @@ contract YAMIncentivizer is LPTokenWrapper, IRewardDistributionRecipient {
         onlyRewardDistribution
         updateReward(address(0))
     {
+        // https://sips.synthetix.io/sips/sip-77
+        require(reward < uint256(-1) / 10**18, "rewards too large, would lock");
         if (block.timestamp > starttime) {
           if (block.timestamp >= periodFinish) {
               rewardRate = reward.div(DURATION);
@@ -762,7 +767,9 @@ contract YAMIncentivizer is LPTokenWrapper, IRewardDistributionRecipient {
           periodFinish = block.timestamp.add(DURATION);
           emit RewardAdded(reward);
         } else {
-          require(yam.balanceOf(address(this)) == 0, "already initialized");
+          require(initreward < uint256(-1) / 10**18, "rewards too large, would lock");
+          require(!initialized, "already initialized");
+          initialized = true;
           yam.mint(address(this), initreward);
           rewardRate = initreward.div(DURATION);
           lastUpdateTime = starttime;
