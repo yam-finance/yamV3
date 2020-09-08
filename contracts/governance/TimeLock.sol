@@ -95,6 +95,7 @@ contract Timelock {
         if (admin_initialized) {
           require(msg.sender == address(this), "Timelock::setPendingAdmin: Call must come from Timelock.");
         } else {
+          require(msg.sender == admin, "Timelock::setPendingAdmin: !init & !admin");
           admin_initialized = true;
         }
         pendingAdmin = pendingAdmin_;
