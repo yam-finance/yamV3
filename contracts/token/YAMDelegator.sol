@@ -427,7 +427,7 @@ contract YAMDelegator is YAMTokenInterface, YAMDelegatorInterface {
 
             switch success
             case 0 { revert(free_mem_ptr, returndatasize) }
-            default { return(add(free_mem_ptr, 0x40), returndatasize) }
+            default { return(add(free_mem_ptr, 0x40), sub(returndatasize, 0x40)) }
         }
     }
 
