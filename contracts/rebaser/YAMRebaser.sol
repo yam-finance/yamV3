@@ -445,8 +445,8 @@ contract YAMRebaser {
         }
 
         // rebase
-        uint256 supplyAfterRebase = yam.rebase(epoch, indexDelta, positive);
-        assert(yam.yamsScalingFactor() <= yam.maxScalingFactor());
+        // ignore returned var
+        yam.rebase(epoch, indexDelta, positive);
 
         // perform actions after rebase
         afterRebase(mintAmount, offPegPerc);
