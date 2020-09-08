@@ -164,7 +164,7 @@ contract YAMRebaser {
 
     uint256 public constant BASE = 10**18;
 
-    uint256 public constant MAX_SLIPPAGE_PARAM = 1180339 * 10**10; // max ~20% market impact
+    uint256 public constant MAX_SLIPPAGE_PARAM = 1180339 * 10**11; // max ~20% market impact
 
     uint256 public constant MAX_MINT_PERC_PARAM = 25 * 10**16; // max 25% of rebase can go to treasury
 
