@@ -643,10 +643,10 @@ interface YAM {
 
 contract YAMIncentivizer is LPTokenWrapper, IRewardDistributionRecipient {
     IERC20 public yam = IERC20(0x0e2298E3B3390e3b945a5456fBf59eCc3f55DA16);
-    uint256 public constant DURATION = 625000;
+    uint256 public constant DURATION = 7 days;
 
     uint256 public initreward = 925 * 10**2 * 10**18; // 92.5k
-    uint256 public starttime = 1600560000 + 48 hours; // 2020-08-12 19:00:00 (UTC UTC +00:00)
+    uint256 public starttime = 1600560000; // 2020-09-20 00:00:00 (UTC +00:00)
     uint256 public periodFinish = 0;
     uint256 public rewardRate = 0;
     uint256 public lastUpdateTime;
