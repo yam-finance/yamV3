@@ -13,7 +13,7 @@ contract YAMGovernanceToken is YAMTokenInterface {
     event DelegateVotesChanged(address indexed delegate, uint previousBalance, uint newBalance);
 
     /**
-     * @notice Delegate votes from `msg.sender` to `delegatee`
+     * @notice Get delegatee for an address delegating
      * @param delegator The address to get delegatee for
      */
     function delegates(address delegator)

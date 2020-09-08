@@ -148,7 +148,7 @@ contract YAMRebaser {
     /// @notice address to send part of treasury to
     address public public_goods;
 
-    /// @notice address to send part of treasury to
+    /// @notice percentage of treasury to send to public goods address
     uint256 public public_goods_perc;
 
     // Max slippage factor when buying reserve token. Magic number based on

@@ -63,7 +63,7 @@ contract YAMReserves {
     }
 
     /** @notice sets the pendingGov
-     * @param pendingGov_ The address of the rebaser contract to use for authentication.
+     * @param pendingGov_ The address of the gov contract to use for authentication.
      */
     function _setPendingGov(address pendingGov_)
         external
