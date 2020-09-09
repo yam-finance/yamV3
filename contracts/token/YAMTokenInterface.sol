@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT
+
 pragma solidity 0.5.15;
 
 import "./YAMTokenStorage.sol";
@@ -73,7 +75,7 @@ contract YAMTokenInterface is YAMTokenStorage, YAMGovernanceStorage {
     function maxScalingFactor() external view returns (uint256);
     function yamToFragment(uint256 yam) external view returns (uint256);
     function fragmentToYam(uint256 value) external view returns (uint256);
-    
+
     /* - Governance Functions - */
     function getPriorVotes(address account, uint blockNumber) external view returns (uint256);
     function delegateBySig(address delegatee, uint nonce, uint expiry, uint8 v, bytes32 r, bytes32 s) external;
