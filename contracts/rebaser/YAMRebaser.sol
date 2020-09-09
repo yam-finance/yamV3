@@ -709,20 +709,30 @@ contract YAMRebaser {
         internal
         returns (uint256)
     {
-      (uint priceCumulative, uint32 blockTimestamp) =
-         UniswapV2OracleLibrary.currentCumulativePrices(uniswap_pair, isToken0);
-       uint32 timeElapsed = blockTimestamp - blockTimestampLast; // overflow is desired
+        (uint priceCumulative, uint32 blockTimestamp) =
+            UniswapV2OracleLibrary.currentCumulativePrices(uniswap_pair, isToken0);
+        uint32 timeElapsed = blockTimestamp - blockTimestampLast; // overflow is desired
 
-       // no period check as is done in isRebaseWindow
+        // no period check as is done in isRebaseWindow
 
-       // overflow is desired, casting never truncates
-        // cumulative price is in (uq112x112 price * seconds) units so we simply wrap it after division by time elapsed
-        FixedPoint.uq112x112 memory priceAverage = FixedPoint.uq112x112(uint224((priceCumulative - priceCumulativeLast) / timeElapsed));
+
+        // overflow is desired
+        uint256 priceAverage = uint256(uint224((priceCumulative - priceCumulativeLast) / timeElapsed));
 
         priceCumulativeLast = priceCumulative;
         blockTimestampLast = blockTimestamp;
 
-        return FixedPoint.decode144(FixedPoint.mul(priceAverage, BASE));
+        // BASE is on order of 1e18, which takes 2^60 bits
+        // multiplication will revert if priceAverage > 2^196
+        // (which it can because it overflows intentially)
+        if (priceAverage > uint192(-1)) {
+           // eat loss of precision
+           // effectively: (x / 2**112) * 1e18
+           return (priceAverage >> 112) * BASE;
+        }
+        // cant overflow
+        // effectively: (x * 1e18 / 2**112)
+        return (priceAverage * BASE) >> 112;
     }
 
     /**
@@ -740,11 +750,20 @@ contract YAMRebaser {
 
        // no period check as is done in isRebaseWindow
 
-       // overflow is desired, casting never truncates
-        // cumulative price is in (uq112x112 price * seconds) units so we simply wrap it after division by time elapsed
-        FixedPoint.uq112x112 memory priceAverage = FixedPoint.uq112x112(uint224((priceCumulative - priceCumulativeLast) / timeElapsed));
+       // overflow is desired
+        uint256 priceAverage = uint256(uint224((priceCumulative - priceCumulativeLast) / timeElapsed));
 
-        return FixedPoint.decode144(FixedPoint.mul(priceAverage, BASE));
+        // BASE is on order of 1e18, which takes 2^60 bits
+        // multiplication will revert if priceAverage > 2^196
+        // (which it can because it overflows intentially)
+        if (priceAverage > uint192(-1)) {
+            // eat loss of precision
+            // effectively: (x / 2**112) * 1e18
+            return (priceAverage >> 112) * BASE;
+        }
+        // cant overflow
+        // effectively: (x * 1e18 / 2**112)
+        return (priceAverage * BASE) >> 112;
     }
 
     /**
