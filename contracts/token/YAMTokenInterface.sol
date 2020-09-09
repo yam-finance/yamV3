@@ -71,7 +71,9 @@ contract YAMTokenInterface is YAMTokenStorage, YAMGovernanceStorage {
     function increaseAllowance(address spender, uint256 addedValue) external returns (bool);
     function decreaseAllowance(address spender, uint256 subtractedValue) external returns (bool);
     function maxScalingFactor() external view returns (uint256);
-
+    function yamToFragment(uint256 yam) external view returns (uint256);
+    function fragmentToYam(uint256 value) external view returns (uint256);
+    
     /* - Governance Functions - */
     function getPriorVotes(address account, uint blockNumber) external view returns (uint256);
     function delegateBySig(address delegatee, uint nonce, uint expiry, uint8 v, bytes32 r, bytes32 s) external;

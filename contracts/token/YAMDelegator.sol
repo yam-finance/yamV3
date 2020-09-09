@@ -9,7 +9,7 @@ contract YAMDelegator is YAMTokenInterface, YAMDelegatorInterface {
      * @param name_ ERC-20 name of this token
      * @param symbol_ ERC-20 symbol of this token
      * @param decimals_ ERC-20 decimal precision of this token
-     * @param initSupply_ Initial token amount
+     * @param initTotalSupply_ Initial token amount
      * @param implementation_ The address of the implementation the contract delegates to
      * @param becomeImplementationData The encoded args for becomeImplementation
      */
@@ -17,7 +17,7 @@ contract YAMDelegator is YAMTokenInterface, YAMDelegatorInterface {
         string memory name_,
         string memory symbol_,
         uint8 decimals_,
-        uint256 initSupply_,
+        uint256 initTotalSupply_,
         address implementation_,
         bytes memory becomeImplementationData
     )
@@ -37,7 +37,7 @@ contract YAMDelegator is YAMTokenInterface, YAMDelegatorInterface {
                 symbol_,
                 decimals_,
                 msg.sender,
-                initSupply_
+                initTotalSupply_
             )
         );
 
@@ -371,6 +371,25 @@ contract YAMDelegator is YAMTokenInterface, YAMDelegatorInterface {
         returns (uint256)
     {
         account;
+        delegateToViewAndReturn();
+    }
+
+
+    function yamToFragment(uint256 yam)
+        external
+        view
+        returns (uint256)
+    {
+        yam;
+        delegateToViewAndReturn();
+    }
+
+    function fragmentToYam(uint256 value)
+        external
+        view
+        returns (uint256)
+    {
+        value;
         delegateToViewAndReturn();
     }
 

@@ -91,7 +91,7 @@ contract YAMToken is YAMGovernanceToken {
         initSupply = initSupply.add(amount);
 
         // get external value
-        uint256 scaledAmount = amount.mul(yamsScalingFactor).div(internalDecimals);
+        uint256 scaledAmount = _yamToFragment(amount);
 
         // increase totalSupply
         totalSupply = totalSupply.add(scaledAmount);
@@ -111,7 +111,7 @@ contract YAMToken is YAMGovernanceToken {
         totalSupply = totalSupply.add(amount);
 
         // get underlying value
-        uint256 yamValue = amount.mul(internalDecimals).div(yamsScalingFactor);
+        uint256 yamValue = _fragmentToYam(amount);
 
         // increase initSupply
         initSupply = initSupply.add(yamValue);
@@ -148,7 +148,7 @@ contract YAMToken is YAMGovernanceToken {
         // minimum transfer value == yamsScalingFactor / 1e24;
 
         // get amount in underlying
-        uint256 yamValue = value.mul(internalDecimals).div(yamsScalingFactor);
+        uint256 yamValue = _fragmentToYam(value);
 
         // sub from balance of sender
         _yamBalances[msg.sender] = _yamBalances[msg.sender].sub(yamValue);
@@ -176,7 +176,7 @@ contract YAMToken is YAMGovernanceToken {
         _allowedFragments[from][msg.sender] = _allowedFragments[from][msg.sender].sub(value);
 
         // get value in yams
-        uint256 yamValue = value.mul(internalDecimals).div(yamsScalingFactor);
+        uint256 yamValue = _fragmentToYam(value);
 
         // sub from from
         _yamBalances[from] = _yamBalances[from].sub(yamValue);
@@ -196,7 +196,7 @@ contract YAMToken is YAMGovernanceToken {
       view
       returns (uint256)
     {
-      return _yamBalances[who].mul(yamsScalingFactor).div(internalDecimals);
+      return _yamToFragment(_yamBalances[who]);
     }
 
     /** @notice Currently returns the internal storage amount
@@ -426,10 +426,42 @@ contract YAMToken is YAMGovernanceToken {
         }
 
         // update total supply, correctly
-        totalSupply = initSupply.mul(yamsScalingFactor).div(internalDecimals);
+        totalSupply = _yamToFragment(initSupply);
 
         emit Rebase(epoch, prevYamsScalingFactor, yamsScalingFactor);
         return totalSupply;
+    }
+
+    function yamToFragment(uint256 yam)
+        external
+        view
+        returns (uint256)
+    {
+        return _yamToFragment(yam);
+    }
+
+    function fragmentToYam(uint256 value)
+        external
+        view
+        returns (uint256)
+    {
+        return _fragmentToYam(value);
+    }
+
+    function _yamToFragment(uint256 yam)
+        internal
+        view
+        returns (uint256)
+    {
+        return yam.mul(yamsScalingFactor).div(internalDecimals);
+    }
+
+    function _fragmentToYam(uint256 value)
+        internal
+        view
+        returns (uint256)
+    {
+        return value.mul(internalDecimals).div(yamsScalingFactor);
     }
 
     // Rescue tokens
@@ -460,16 +492,16 @@ contract YAM is YAMToken {
         string memory symbol_,
         uint8 decimals_,
         address initial_owner,
-        uint256 initSupply_
+        uint256 initTotalSupply_
     )
         public
     {
         super.initialize(name_, symbol_, decimals_);
 
-        initSupply = initSupply_.mul(10**24/ (BASE));
-        totalSupply = initSupply_;
         yamsScalingFactor = BASE;
-        _yamBalances[initial_owner] = initSupply_.mul(10**24 / (BASE));
+        initSupply = _fragmentToYam(initTotalSupply_);
+        totalSupply = initTotalSupply_;
+        _yamBalances[initial_owner] = initSupply;
 
         DOMAIN_SEPARATOR = keccak256(
             abi.encode(
