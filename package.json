@@ -10,10 +10,11 @@
   "license": "ISC",
   "dependencies": {
     "ethers": "^5.0.8",
-    "ganache-core": "^2.11.2"
+    "ganache-cli": "^6.10.1-beta.2",
+    "ganache-core": "^2.11.3-beta.0"
   },
   "devDependencies": {
-    "@truffle/hdwallet-provider": "^1.0.40",
+    "@truffle/hdwallet-provider": "^1.0.43",
     "dotenv-flow": "^3.2.0",
     "ethereumjs-abi": "^0.6.8",
     "ethereumjs-util": "^7.0.4"

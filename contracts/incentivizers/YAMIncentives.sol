@@ -579,7 +579,7 @@ pragma solidity 0.5.15;
 
 
 contract IRewardDistributionRecipient is Ownable {
-    address rewardDistribution;
+    address public rewardDistribution;
 
     function notifyRewardAmount(uint256 reward) external;
 
@@ -609,7 +609,7 @@ contract LPTokenWrapper {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    IERC20 public uni_lp = IERC20(0x2C7a51A357d5739C5C74Bf3C96816849d2c9F726);
+    IERC20 public uni_lp = IERC20(0xb93Cc05334093c6B3b8Bfd29933bb8d5C031caBC);
 
     uint256 private _totalSupply;
 
@@ -642,17 +642,18 @@ interface YAM {
 }
 
 contract YAMIncentivizer is LPTokenWrapper, IRewardDistributionRecipient {
-    IERC20 public yam = IERC20(0x0e2298E3B3390e3b945a5456fBf59eCc3f55DA16);
+    IERC20 public yam = IERC20(0x0AaCfbeC6a24756c20D41914F2caba817C0d8521);
     uint256 public constant DURATION = 7 days;
 
     uint256 public initreward = 925 * 10**2 * 10**18; // 92.5k
-    uint256 public starttime = 1600560000; // 2020-09-20 00:00:00 (UTC +00:00)
+    uint256 public starttime = 1600545600; // 2020-09-19 8:00:00 PM (UTC +00:00)
     uint256 public periodFinish = 0;
     uint256 public rewardRate = 0;
     uint256 public lastUpdateTime;
     uint256 public rewardPerTokenStored;
 
     bool public initialized = false;
+    bool public breaker;
 
     mapping(address => uint256) public userRewardPerTokenPaid;
     mapping(address => uint256) public rewards;
@@ -729,7 +730,9 @@ contract YAMIncentivizer is LPTokenWrapper, IRewardDistributionRecipient {
     }
 
     modifier checkhalve() {
-        if (block.timestamp >= periodFinish) {
+        if (breaker) {
+          // do nothing
+        } else if (block.timestamp >= periodFinish) {
             initreward = initreward.mul(90).div(100);
             uint256 scalingFactor = YAM(address(yam)).yamsScalingFactor();
             uint256 newRewards = initreward.mul(scalingFactor).div(10**18);
@@ -796,5 +799,13 @@ contract YAMIncentivizer is LPTokenWrapper, IRewardDistributionRecipient {
 
         // transfer to
         _token.safeTransfer(to, amount);
+    }
+
+    function setBreaker(bool breaker_)
+        external
+    {
+        // only gov
+        require(msg.sender == owner(), "!governance");
+        breaker = breaker_;
     }
 }

@@ -4,18 +4,20 @@ networkId = "1"
 networkId2 = "1001"
 from os import listdir
 from os.path import isfile, join
-mypath = "/Users/brockelmore/YAM/build/contracts"
-onlyfiles = [f for f in listdir(mypath) if isfile(join(mypath, f))]
-onlyfiles
+import os
+mypath = os.getcwd()
+folder = mypath+ "/build/contracts/"
+onlyfiles = listdir(folder)
 
 for file in onlyfiles:
-    with open("/Users/brockelmore/YAM/build/contracts/"+file, "r") as f:
+    with open(mypath+ "/build/contracts/"+file, "r") as f:
         if "json" in file:
             try:
                 cleaned = {}
                 a = json.loads(f.read())
                 cleaned["abi"] = a["abi"]
                 cleaned["networks"] = {}
+                print(a["networks"])
                 if (networkId in a["networks"].keys()):
                     cleaned["networks"][networkId] = {}
                     cleaned["networks"][networkId]["links"] = a["networks"][networkId]["links"],
@@ -28,7 +30,7 @@ for file in onlyfiles:
                     cleaned["networks"][networkId2]["address"] = a["networks"][networkId2]["address"],
                     cleaned["networks"][networkId2]["address"] = cleaned["networks"][networkId2]["address"][0]
                     cleaned["networks"][networkId2]["transactionHash"] = a["networks"][networkId2]["transactionHash"]
-                with open("/Users/brockelmore/YAM/clean_build/contracts/"+file, "w+") as c:
+                with open(mypath+"/clean_build/contracts/"+file, "w+") as c:
                     c.write(json.dumps(cleaned))
             except Exception as e:
                 print(e)

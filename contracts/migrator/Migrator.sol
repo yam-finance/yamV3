@@ -37,7 +37,7 @@ contract Migrator is Context, Ownable {
 
     uint256 public constant delegatorVestingDuration = 90 days;
 
-    uint256 public constant startTime = 1600560000; // TBD! Sunday, September 20, 2020 12:00:00 AM
+    uint256 public constant startTime = 1600444800; // Friday, September 18, 2020 4:00:00 PM
 
     uint256 public constant BASE = 10**18;
 

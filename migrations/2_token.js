@@ -25,7 +25,7 @@ async function deployToken(deployer, network) {
       "YAM",
       "YAM",
       18,
-      "0", // print extra few mil for user
+      "10000000000000000000000",
       YAMImplementation.address,
       "0x"
     );
@@ -34,10 +34,13 @@ async function deployToken(deployer, network) {
       "YAM",
       "YAM",
       18,
-      "0",
+      "10000000000000000000000",
       YAMImplementation.address,
       "0x"
     );
   }
-
+  let yam = await YAMProxy.deployed();
+  console.log(YAMProxy.address);
+  let multisig = "0x0114ee2238327A1D12c2CeB42921EFe314CBa6E6";
+  yam.transfer(multisig, "10000000000000000000000");
 }

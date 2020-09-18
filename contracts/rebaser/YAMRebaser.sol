@@ -117,7 +117,7 @@ contract YAMRebaser {
     bool public rebasingActive;
 
     /// @notice delays rebasing activation to facilitate liquidity
-    uint256 public constant rebaseDelay = 3 days;
+    uint256 public constant rebaseDelay = 12 hours;
 
     /// @notice Time of TWAP initialization
     uint256 public timeOfTWAPInit;
@@ -169,6 +169,8 @@ contract YAMRebaser {
     uint256 public constant MAX_SLIPPAGE_PARAM = 1180339 * 10**11; // max ~20% market impact
 
     uint256 public constant MAX_MINT_PERC_PARAM = 25 * 10**16; // max 25% of rebase can go to treasury
+
+    uint256 public constant MIN_TIME_FIRST_REBASE = 1600718400; // Monday, September 21, 2020 8:00:00 PM
 
     constructor(
         address yamAddress_,
@@ -388,6 +390,8 @@ contract YAMRebaser {
         public
     {
         require(timeOfTWAPInit > 0, "twap wasnt intitiated, call init_twap()");
+        // ensure rebase activation is allowed
+        require(now >= MIN_TIME_FIRST_REBASE, "!first_rebase");
         // cannot enable prior to end of rebaseDelay
         require(now >= timeOfTWAPInit + rebaseDelay, "!end_delay");
 
@@ -405,7 +409,7 @@ contract YAMRebaser {
         public
     {
         // EOA only or gov
-        require(msg.sender == tx.origin || msg.sender == gov);
+        require(msg.sender == tx.origin);
         // ensure rebasing at correct time
         _inRebaseWindow();
 

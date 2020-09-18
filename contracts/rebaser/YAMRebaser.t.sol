@@ -179,6 +179,32 @@ contract YAMRebaserTest is DSTest {
         assertEq(pairs[1], dai_yam);
     }
 
+    function test_overflowing_oracle() public {
+        init_twap();
+        hevm.warp(now + rebaser.rebaseDelay());
+        hevm.warp(rebaser.MIN_TIME_FIRST_REBASE());
+        rebaser.activate_rebasing();
+        assertTrue(rebaser.rebasingActive());
+        /* assertEq(rebaser.priceCumulativeLast(), 0); */
+        hevm.warp(now + 12 hours);
+        assertEq(rebaser.getCurrentTWAP(), 1);
+        hevm.warp(now + 12 hours);
+        address yyCRVPool = pairFor(uniFact, address(yamV3), yyCRV);
+        (uint priceCumulative, uint32 blockTimestamp) =
+           UniswapV2OracleLibrary.currentCumulativePrices(yyCRVPool, rebaser.isToken0());
+         uint32 timeElapsed = blockTimestamp - rebaser.blockTimestampLast(); // overflow is desired
+
+
+         assertEq(rebaser.priceCumulativeLast(), 1);
+         assertEq(priceCumulative, 2);
+         // no period check as is done in isRebaseWindow
+
+         // overflow is desired
+          uint256 priceAverage = uint256(uint224((priceCumulative - rebaser.priceCumulativeLast()) / timeElapsed));
+          assertEq(priceAverage, 3);
+          assertEq((priceAverage >> 112), 4);
+    }
+
     function test_setMaxSlippage() public {
         rebaser.setMaxSlippageFactor(10**17);
         assertEq(rebaser.maxSlippageFactor(), 10**17);
@@ -243,7 +269,7 @@ contract YAMRebaserTest is DSTest {
 
     function test_activateRebasing() public {
         init_twap();
-        hevm.warp(now + rebaser.rebaseDelay());
+        hevm.warp(rebaser.MIN_TIME_FIRST_REBASE());
         rebaser.activate_rebasing();
         assertTrue(rebaser.rebasingActive());
     }
@@ -259,7 +285,7 @@ contract YAMRebaserTest is DSTest {
 
     function test_positive_rebase() public {
         init_twap();
-        hevm.warp(now + rebaser.rebaseDelay());
+        hevm.warp(rebaser.MIN_TIME_FIRST_REBASE());
         rebaser.activate_rebasing();
         assertTrue(rebaser.rebasingActive());
         pos_rebase();
@@ -267,7 +293,7 @@ contract YAMRebaserTest is DSTest {
 
     function test_negative_rebase() public {
         init_twap();
-        hevm.warp(now + rebaser.rebaseDelay());
+        hevm.warp(rebaser.MIN_TIME_FIRST_REBASE());
         rebaser.activate_rebasing();
         assertTrue(rebaser.rebasingActive());
         neg_rebase();
@@ -275,7 +301,7 @@ contract YAMRebaserTest is DSTest {
 
     function test_double_negative_rebase() public {
         init_twap();
-        hevm.warp(now + rebaser.rebaseDelay());
+        hevm.warp(rebaser.MIN_TIME_FIRST_REBASE());
         rebaser.activate_rebasing();
         assertTrue(rebaser.rebasingActive());
         neg_rebase();
@@ -284,7 +310,7 @@ contract YAMRebaserTest is DSTest {
 
     function test_double_pos_rebase() public {
         init_twap();
-        hevm.warp(now + rebaser.rebaseDelay());
+        hevm.warp(rebaser.MIN_TIME_FIRST_REBASE());
         rebaser.activate_rebasing();
         assertTrue(rebaser.rebasingActive());
         pos_rebase();
@@ -294,7 +320,7 @@ contract YAMRebaserTest is DSTest {
     // long running
     function test_rebase_scenario() public {
         init_twap();
-        hevm.warp(now + rebaser.rebaseDelay());
+        hevm.warp(rebaser.MIN_TIME_FIRST_REBASE());
         rebaser.activate_rebasing();
         assertTrue(rebaser.rebasingActive());
         pos_rebase();
