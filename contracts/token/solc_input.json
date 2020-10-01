@@ -1,0 +1,42 @@
+{
+  "language": "Solidity",
+  "sources":
+  {
+    "YAMDelegator.sol": {
+      "urls": [ "/home/brock/yamV3/contracts/token/YAMDelegator.sol" ]
+    },
+    "SafeMath.sol": {
+      "urls": [ "/home/brock/yamV3/contracts/lib/SafeMath.sol" ]
+    },
+    "YAM.sol": {
+      "urls": [ "/home/brock/yamV3/contracts/token/YAM.sol" ]
+    },
+    "YAMDelegate.sol": {
+      "urls": [ "/home/brock/yamV3/contracts/token/YAMDelegate.sol" ]
+    },
+    "YAMGovernance.sol": {
+      "urls": [ "/home/brock/yamV3/contracts/token/YAMGovernance.sol" ]
+    },
+    "YAMGovernanceStorage.sol": {
+      "urls": [ "/home/brock/yamV3/contracts/token/YAMGovernanceStorage.sol" ]
+    },
+    "YAMTokenInterface.sol": {
+      "urls": [ "/home/brock/yamV3/contracts/token/YAMTokenInterface.sol" ]
+    },
+    "YAMTokenStorage.sol": {
+      "urls": [ "/home/brock/yamV3/contracts/token/YAMTokenStorage.sol" ]
+    }
+  },
+  "settings":
+  {
+    "optimizer": {
+      "enabled": true,
+      "runs": 50000
+    },
+    "outputSelection": {
+      "*": {
+        "*": [ "storageLayout" ]
+      }
+    }
+  }
+}

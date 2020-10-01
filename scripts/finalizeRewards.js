@@ -25,64 +25,14 @@ async function a() {
       return web3.utils.toBN(b["balanceOfUnderlying"]).cmp(web3.utils.toBN(a["balanceOfUnderlying"]))
     })
     console.log(web3.utils.toBN(delegators[0]["balanceOfUnderlying"]), twentySeven, delegators.slice(delegators.length - 35,)[0])
-    delegatorRewards(delegators.slice(delegators.length - 35,)).then(e => console.log(e))
+    delegatorRewards().then(e => console.log(e))
     return;
   });
   return;
 }
 
-async function delegatorRewards(delegators) {
+async function delegatorRewards() {
   let accounts = await web3.eth.getAccounts();
-  let dels = []
-  let amts = []
-  let under = false;
-  let a;
-  for (let i = 0; i < delegators.length; i++) {
-    // console.log(under, i, delegators[i])
-    if (!under && web3.utils.toBN(delegators[i]["balanceOfUnderlying"]).lt(twentySeven)) {
-      console.log("adding, UNDER!!!", i, dels.length)
-      if (dels.length > 0) {
-        console.log("sending")
-        a = await migrator.methods.addDelegatorReward(
-          dels,
-          amts,
-          under
-        ).send({from: accounts[0], gas: 2000000, gasPrice: gp});
-        console.log("a", a);
-      }
-      under = true;
-      dels = []
-      amts = []
-    }
-
-    if (dels.length >= 180) {
-      console.log("adding", )
-       a = await migrator.methods.addDelegatorReward(
-        dels,
-        amts,
-        under
-      ).send({from: accounts[0], gas: 2000000, gasPrice: gp});
-      console.log("a", a);
-      dels = []
-      amts = []
-    }
-    dels.push(delegators[i]["address"]);
-    if (web3.utils.toBN(delegators[i]["balanceOfUnderlying"]).lt(twentySeven)) {
-      amts.push(0);
-    } else {
-      amts.push(delegators[i]["balanceOfUnderlying"]);
-    }
-  }
-  console.log("done", dels);
-  a = await migrator.methods.addDelegatorReward(
-    dels,
-    amts,
-    under
-  ).send({from: accounts[0], gas: 2000000, gasPrice: gp});
-  console.log("a", a);
-  dels = []
-  amts = []
-
   let vesting = await migrator.methods.delegator_vesting("0xa4E40b3d3e1B04043C4Cb89810e055A78CAF272b").call()
   console.log(vesting)
   assert(vesting == "27000000000000000000000000");
@@ -92,7 +42,7 @@ async function delegatorRewards(delegators) {
   vesting = await migrator.methods.delegator_vesting("0x65C084B69b7F21aCEFe2c68AA25C67Efd2E10160").call()
   assert(vesting == "7783095872406225027581378515");
   // await migrator.methods.delegatorRewardsDone().send({from: accounts[0], gas: 100000, gasPrice: gp});
-  // await migrator.methods.transferOwnership("0x1cbC5182eEcB415B6de726E6ce645711B060104f").send({from: accounts[0], gas: 100000, gasPrice: gp});
+  await migrator.methods.transferOwnership("0x8b4f1616751117C38a0f84F9A146cca191ea3EC5").send({from: accounts[0], gas: 100000, gasPrice: gp});
   return "done"
 }
 

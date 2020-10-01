@@ -142,6 +142,11 @@ contract YAMRebaserTest is DSTest {
             address(0x232C95A72F132392171831cEcEc8c1161975c398),
             10**16 // 1%
         );
+        address[] memory uni = new address[](1);
+        address[] memory bal = new address[](0);
+        uni[0] = address(0xe2aAb7232a9545F29112f9e6441661fD6eEB0a5d);
+        rebaser.addSyncPairs(uni,bal);
+
 
         yamV3._setMigrator(address(migration));
         assert(yamV3.migrator() == address(migration));
@@ -169,7 +174,7 @@ contract YAMRebaserTest is DSTest {
     //
     // TESTS
     //
-    function test_addSyncPairs() public {
+    function test_rebaser_addSyncPairs() public {
         address dai_yam = pairFor(uniFact, address(yamV3), dai);
         address[] memory unis = new address[](1);
         address[] memory bals = new address[](0);
@@ -179,7 +184,7 @@ contract YAMRebaserTest is DSTest {
         assertEq(pairs[1], dai_yam);
     }
 
-    function test_overflowing_oracle() public {
+    function test_rebaser_overflowing_oracle() public {
         init_twap();
         hevm.warp(now + rebaser.rebaseDelay());
         hevm.warp(rebaser.MIN_TIME_FIRST_REBASE());
@@ -205,93 +210,103 @@ contract YAMRebaserTest is DSTest {
           assertEq((priceAverage >> 112), 4);
     }
 
-    function test_setMaxSlippage() public {
+    function test_rebaser_setMaxSlippage() public {
         rebaser.setMaxSlippageFactor(10**17);
         assertEq(rebaser.maxSlippageFactor(), 10**17);
     }
 
-    function testFail_setMaxSlippage() public {
+    function testFail_rebaser_setMaxSlippage() public {
         user.do_setMaxSlippageFactor(rebaser, 10**17);
     }
 
-    function test_setRebaseMintPerc() public {
+    function test_rebaser_setRebaseMintPerc() public {
         rebaser.setRebaseMintPerc(10**17);
         assertEq(rebaser.rebaseMintPerc(), 10**17);
     }
 
-    function testFail_setRebaseMintPerc() public {
+    function testFail_rebaser_setRebaseMintPerc() public {
         user.do_setRebaseMintPerc(rebaser, 10**17);
     }
 
-    function test_setReserveContract() public {
+    function test_rebaser_setReserveContract() public {
         rebaser.setReserveContract(me);
         assertEq(rebaser.reservesContract(), me);
     }
 
-    function testFail_setReserveContract() public {
+    function testFail_rebaser_setReserveContract() public {
         user.do_setReserveContract(rebaser, me);
     }
 
-    function test_setPendingGov() public {
+    function test_rebaser_setPendingGov() public {
         rebaser._setPendingGov(me);
         assertEq(rebaser.pendingGov(), me);
     }
 
-    function testFail_setPendingGov() public {
+    function testFail_rebaser_setPendingGov() public {
         user.do__setPendingGov(rebaser, me);
     }
 
-    function test_setGov() public {
+    function test_rebaser_setGov() public {
         rebaser._setPendingGov(address(user));
         assertEq(rebaser.pendingGov(), address(user));
         user.do__acceptGov(rebaser);
         assertEq(rebaser.gov(), address(user));
     }
 
-    function testFail_setGov() public {
+    function testFail_rebaser_setGov() public {
         user.do__setPendingGov(rebaser, me);
         user.do__acceptGov(rebaser);
     }
 
-    function test_initTwap() public {
+    function test_rebaser_initTwap() public {
         init_twap();
         assertEq(rebaser.timeOfTWAPInit(), now);
     }
 
-    function testFail_initTwap() public {
+    function testFail_rebaser_initTwap() public {
         rebaser.init_twap();
     }
 
-    function testFail_initTwapAlreadyInited() public {
+    function testFail_rebaser_initTwapAlreadyInited() public {
         init_twap();
         init_twap();
     }
 
-    function test_activateRebasing() public {
+    function test_rebaser_activateRebasing() public {
         init_twap();
         hevm.warp(rebaser.MIN_TIME_FIRST_REBASE());
         rebaser.activate_rebasing();
         assertTrue(rebaser.rebasingActive());
     }
 
-    function testFail_activateRebasing_not_twap() public {
+    function testFail_rebaser_activateRebasing_not_twap() public {
         rebaser.activate_rebasing();
     }
 
-    function testFail_activateRebasing_not_delay() public {
+    function testFail_rebaser_activateRebasing_not_delay() public {
         init_twap();
         rebaser.activate_rebasing();
     }
 
-    function test_positive_rebase() public {
+    /* function test_rebaser_positive_rebase_updatedParams() public {
         init_twap();
         hevm.warp(rebaser.MIN_TIME_FIRST_REBASE());
         rebaser.activate_rebasing();
         assertTrue(rebaser.rebasingActive());
+        rebaser.setRebaseLag(20);
+        rebaser.setMaxSlippageFactor(2597836 * 10**10);
+        pos_rebase();
+    } */
+    function test_rebaser_positive_rebase() public {
+        init_twap();
+        hevm.warp(rebaser.MIN_TIME_FIRST_REBASE());
+        rebaser.activate_rebasing();
+        assertTrue(rebaser.rebasingActive());
+
         pos_rebase();
     }
 
-    function test_negative_rebase() public {
+    function test_rebaser_negative_rebase() public {
         init_twap();
         hevm.warp(rebaser.MIN_TIME_FIRST_REBASE());
         rebaser.activate_rebasing();
@@ -299,7 +314,7 @@ contract YAMRebaserTest is DSTest {
         neg_rebase();
     }
 
-    function test_double_negative_rebase() public {
+    function test_rebaser_double_negative_rebase() public {
         init_twap();
         hevm.warp(rebaser.MIN_TIME_FIRST_REBASE());
         rebaser.activate_rebasing();
@@ -308,7 +323,7 @@ contract YAMRebaserTest is DSTest {
         neg_rebase();
     }
 
-    function test_double_pos_rebase() public {
+    function test_rebaser_double_pos_rebase() public {
         init_twap();
         hevm.warp(rebaser.MIN_TIME_FIRST_REBASE());
         rebaser.activate_rebasing();
@@ -318,7 +333,7 @@ contract YAMRebaserTest is DSTest {
     }
 
     // long running
-    function test_rebase_scenario() public {
+    function test_rebaser_rebase_scenario() public {
         init_twap();
         hevm.warp(rebaser.MIN_TIME_FIRST_REBASE());
         rebaser.activate_rebasing();
