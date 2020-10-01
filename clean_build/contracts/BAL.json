@@ -1,0 +1,1 @@
+{"abi": [{"constant": false, "inputs": [{"internalType": "address", "name": "token", "type": "address"}], "name": "gulp", "outputs": [], "payable": false, "stateMutability": "nonpayable", "type": "function"}], "networks": {}}

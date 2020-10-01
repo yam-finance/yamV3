@@ -165,7 +165,7 @@ contract HEVMHelpers is DSTest {
 
     function writeBalance(YAMDelegator yamV3, address account, uint256 value) public {
         Hevm hevm = Hevm(address(CHEAT_CODE));
-        uint128 bal = yamV3.balanceOfUnderlying(account);
+        uint256 bal = yamV3.balanceOfUnderlying(account);
         hevm.store(address(yamV3),
                    keccak256(abi.encode(address(account), uint(10))),
                    bytes32(uint(value)));
