@@ -2,7 +2,7 @@ node_modules
 build
 .env
 out
-
+makepad_*
 
 #Added by cargo
 
