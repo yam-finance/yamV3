@@ -609,7 +609,7 @@ contract LPTokenWrapper is Ownable {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    IERC20 public uni_lp = IERC20(0xb93Cc05334093c6B3b8Bfd29933bb8d5C031caBC);
+    IERC20 public uni_lp = IERC20(0xe2aAb7232a9545F29112f9e6441661fD6eEB0a5d);
     IERC20 public yam = IERC20(0x0AaCfbeC6a24756c20D41914F2caba817C0d8521);
 
     uint256 public minBlockBeforeVoting;
@@ -633,8 +633,10 @@ contract LPTokenWrapper is Ownable {
     /// @notice The number of checkpoints for each account
     mapping (address => uint32) public numCheckpoints;
 
-    /// @notice The number of checkpoints for each account
-    mapping (uint32 => uint256) public totalSupplyCheckpoints;
+    /// @notice The number of checkpoints for total supply
+    mapping (uint32 => Checkpoint) public totalSupplyCheckpoints;
+    
+    uint32 public numSupplyCheckpoints;
 
     function totalSupply() public view returns (uint256) {
         return _totalSupply;
@@ -663,6 +665,23 @@ contract LPTokenWrapper is Ownable {
         }
         uni_lp.safeTransfer(msg.sender, amount);
     }
+    
+    /**
+     * @notice Gets the current votes balance for `account`
+     * @param account The address to get votes balance
+     * @return The number of current votes for `account`
+     */
+    function getCurrentVotes(address account)
+        external
+        view
+        returns (uint256)
+    {
+        uint256 poolVotes = YAM(address(yam)).getCurrentVotes(address(uni_lp));
+        uint32 nCheckpoints = numCheckpoints[account];
+        uint256 lpStake = nCheckpoints > 0 ? checkpoints[account][nCheckpoints - 1].lpStake : 0;
+        uint256 percOfVotes = lpStake.mul(BASE).div(_totalSupply);
+        return poolVotes.mul(percOfVotes).div(BASE);
+    }
 
     function getPriorVotes(address account, uint256 blockNumber)
         public
@@ -680,7 +699,7 @@ contract LPTokenWrapper is Ownable {
         uint256 priorStake = _getPriorLPStake(account, blockNumber);
 
         // get prior LP stake
-        uint256 lpTotalSupply = totalSupplyCheckpoints[safe32(blockNumber, "Incentivizer::getPriorVotes: block number exceeds 32 bits")];
+        uint256 lpTotalSupply = getPriorSupply(blockNumber);
 
         // get percent ownership of staked LPs
         uint256 percentOfVote = priorStake.mul(BASE).div(lpTotalSupply);
@@ -753,8 +772,49 @@ contract LPTokenWrapper is Ownable {
             numCheckpoints[delegatee] = nCheckpoints + 1;
         }
 
-        // overwrite totalSupplyCheckpoint for block
-        totalSupplyCheckpoints[blockNumber] = _totalSupply;
+        // overwrite totalSupplyCheckpoint for block, increment counter if needed
+        if (numSupplyCheckpoints > 0 && totalSupplyCheckpoints[numSupplyCheckpoints - 1].fromBlock == blockNumber) {
+            totalSupplyCheckpoints[numSupplyCheckpoints - 1].lpStake = _totalSupply;
+        } else {
+            totalSupplyCheckpoints[numSupplyCheckpoints] = Checkpoint(blockNumber, _totalSupply);
+            numSupplyCheckpoints += 1;
+        }
+        
+    }
+    
+    function getPriorSupply(uint256 blockNumber)
+        public
+        view
+        returns (uint256)
+    {
+        if (numSupplyCheckpoints == 0) {
+            return 0;
+        }
+
+        // First check most recent balance
+        if (totalSupplyCheckpoints[numSupplyCheckpoints - 1].fromBlock <= blockNumber) {
+            return totalSupplyCheckpoints[numSupplyCheckpoints - 1].lpStake;
+        }
+
+        // Next check implicit zero balance
+        if (totalSupplyCheckpoints[0].fromBlock > blockNumber) {
+            return 0;
+        }
+
+        uint32 lower = 0;
+        uint32 upper = numSupplyCheckpoints - 1;
+        while (upper > lower) {
+            uint32 center = upper - (upper - lower) / 2; // ceil, avoiding overflow
+            Checkpoint memory cp = totalSupplyCheckpoints[center];
+            if (cp.fromBlock == blockNumber) {
+                return cp.lpStake;
+            } else if (cp.fromBlock < blockNumber) {
+                lower = center;
+            } else {
+                upper = center - 1;
+            }
+        }
+        return totalSupplyCheckpoints[lower].lpStake;
     }
 
     function safe32(uint n, string memory errorMessage) internal pure returns (uint32) {
@@ -777,13 +837,14 @@ interface YAM {
     function yamsScalingFactor() external returns (uint256);
     function mint(address to, uint256 amount) external;
     function getPriorVotes(address account, uint256 blockNumber) external view returns (uint256);
+    function getCurrentVotes(address account) external view returns (uint256);
 }
 
 contract YAMIncentivizerWithVoting is LPTokenWrapper, IRewardDistributionRecipient {
     uint256 public constant DURATION = 7 days;
 
-    uint256 public initreward = 925 * 10**2 * 10**18; // 92.5k
-    uint256 public starttime = 1600545600; // 2020-09-19 8:00:00 PM (UTC +00:00)
+    uint256 public initreward = 674325 * 10**48; // 67432.5 yams
+    uint256 public starttime = 1601928000; // Monday, October 5, 2020 8:00:00 PM (UTC +00:00)
 
     uint256 public periodFinish = 0;
     uint256 public rewardRate = 0;

@@ -311,55 +311,55 @@ contract YAMv3Test is DSTest {
     }
 
     function test_direct_rebase() public {
-      yamV3._setRebaser(me);
-      assertEq(yamV3.rebaser(), me);
-
-      // positive rebase
-      uint256 balance = yamV3.balanceOf(me);
-      uint256 underlying = yamV3.balanceOfUnderlying(me);
-
-      uint256 totalSupply = yamV3.rebase(1, 10**17, true);
-
-      uint256 scalingFactor = yamV3.yamsScalingFactor();
-      assertEq(scalingFactor, 11*10**17);
-
-      assertEq(totalSupply, balance.mul(scalingFactor).div(BASE));
-
-      assertEq(yamV3.initSupply(), underlying);
-
-      // negative rebase
-      totalSupply = yamV3.rebase(2, 10**17, false);
-
-      scalingFactor = yamV3.yamsScalingFactor();
-      assertEq(scalingFactor, 99*10**16);
-
-      // rounding error
-      assertEq(totalSupply, balance.mul(scalingFactor).div(BASE) + 1);
-
-      assertEq(yamV3.initSupply(), underlying);
-
-      // zero rebase
-      totalSupply = yamV3.rebase(3, 0, false);
-
-      scalingFactor = yamV3.yamsScalingFactor();
-      assertEq(scalingFactor, 99*10**16);
-
-      assertEq(totalSupply, balance.mul(scalingFactor).div(BASE) + 1);
-
-      assertEq(yamV3.initSupply(), underlying);
+        yamV3._setRebaser(me);
+        assertEq(yamV3.rebaser(), me);
+    
+        // positive rebase
+        uint256 balance = yamV3.balanceOf(me);
+        uint256 underlying = yamV3.balanceOfUnderlying(me);
+    
+        uint256 totalSupply = yamV3.rebase(1, 10**17, true);
+    
+        uint256 scalingFactor = yamV3.yamsScalingFactor();
+        assertEq(scalingFactor, 11*10**17);
+    
+        assertEq(totalSupply, balance.mul(scalingFactor).div(BASE));
+    
+        assertEq(yamV3.initSupply(), underlying);
+    
+        // negative rebase
+        totalSupply = yamV3.rebase(2, 10**17, false);
+    
+        scalingFactor = yamV3.yamsScalingFactor();
+        assertEq(scalingFactor, 99*10**16);
+    
+        // rounding error
+        assertEq(totalSupply, balance.mul(scalingFactor).div(BASE) + 1);
+    
+        assertEq(yamV3.initSupply(), underlying);
+    
+        // zero rebase
+        totalSupply = yamV3.rebase(3, 0, false);
+    
+        scalingFactor = yamV3.yamsScalingFactor();
+        assertEq(scalingFactor, 99*10**16);
+    
+        assertEq(totalSupply, balance.mul(scalingFactor).div(BASE) + 1);
+    
+        assertEq(yamV3.initSupply(), underlying);
     }
 
     function test_setRoles() public {
-      yamV3._setRebaser(address(user));
-      assertEq(yamV3.rebaser(), address(user));
-      yamV3._setMigrator(address(user));
-      assertEq(yamV3.migrator(), address(user));
-      yamV3._setIncentivizer(address(user));
-      assertEq(yamV3.incentivizer(), address(user));
-      yamV3._setPendingGov(address(user));
-      assertEq(yamV3.pendingGov(), address(user));
-      user.doAcceptGov(yamV3);
-      assertEq(yamV3.gov(), address(user));
+        yamV3._setRebaser(address(user));
+        assertEq(yamV3.rebaser(), address(user));
+        yamV3._setMigrator(address(user));
+        assertEq(yamV3.migrator(), address(user));
+        yamV3._setIncentivizer(address(user));
+        assertEq(yamV3.incentivizer(), address(user));
+        yamV3._setPendingGov(address(user));
+        assertEq(yamV3.pendingGov(), address(user));
+        user.doAcceptGov(yamV3);
+        assertEq(yamV3.gov(), address(user));
     }
 
     function test_rescueTokens() public {

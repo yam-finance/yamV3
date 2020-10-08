@@ -148,9 +148,10 @@ contract DualGovernorAlpha {
     /// @notice An event emitted when a proposal has been executed in the Timelock
     event ProposalExecuted(uint256 id);
 
-    constructor(address timelock_, address yam_) public {
+    constructor(address timelock_, address yam_, address[] memory incentivizers_) public {
         timelock = TimelockInterface(timelock_);
         yam = YAMInterface(yam_);
+        incentivizers = incentivizers_;
         guardian = msg.sender;
     }
 
@@ -173,13 +174,28 @@ contract DualGovernorAlpha {
     }
 
     function getPriorVotes(address account, uint256 blockNumber)
-        internal
+        public
         returns (uint256)
     {
+        // -- get prior votes for yam
+        require(blockNumber < block.number, "Gov::getPriorVotes: not yet determined");
+        
         uint256 votes = yam.getPriorVotes(account, blockNumber);
         for (uint256 i = 0; i < incentivizers.length; i++) {
-            // get user lp stake and stored LP total supply
+            // get prior votes for staking (stakers get full pool power)
             votes = SafeMath.add(votes, Incentivizer(incentivizers[i]).getPriorVotes(account, blockNumber));
+        }
+        return votes;
+    }
+    
+    function getCurrentVotes(address account)
+        public
+        returns (uint256)
+    {
+        uint256 votes = yam.getCurrentVotes(account);
+        for (uint256 i = 0; i < incentivizers.length; i++) {
+            // get prior votes for staking (stakers get full pool power)
+            votes = SafeMath.add(votes, Incentivizer(incentivizers[i]).getCurrentVotes(account));
         }
         return votes;
     }
@@ -481,9 +497,11 @@ interface TimelockInterface {
 
 interface YAMInterface {
     function getPriorVotes(address account, uint256 blockNumber) external view returns (uint256);
+    function getCurrentVotes(address account) external view returns (uint256);
     function _acceptGov() external;
 }
 
 interface Incentivizer {
     function getPriorVotes(address account, uint256 blockNumber) external view returns (uint256);
+    function getCurrentVotes(address account) external view returns (uint256);
 }

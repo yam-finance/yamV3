@@ -15,7 +15,7 @@ import { GovernorAlpha } from "../../governance/YAMGovernorAlpha.sol";
 import { Timelock } from "../../governance/TimeLock.sol";
 import { YAMIncentivizer } from "../../incentivizers/YAMIncentives.sol";
 import "../../lib/UniswapRouterInterface.sol";
-import { HEVMHelpers, User } from "../HEVMHelpers.sol";
+import { YAMHelper, HEVMHelpers } from "../HEVMHelpers.sol";
 
 interface Hevm {
     function warp(uint) external;
@@ -36,7 +36,11 @@ interface YYCRV {
   function withdraw(uint256 shares) external;
 }
 
-
+contract User {
+    function doTransfer(YAMDelegator yamV3, address to, uint256 amount) external {
+        yamV3.transfer(to, amount);
+    }
+}
 
 
 contract YAMv3Test is DSTest {
@@ -49,6 +53,7 @@ contract YAMv3Test is DSTest {
     Hevm hevm;
 
     HEVMHelpers helper;
+    YAMHelper yamhelper;
 
     // CHEAT_CODE = 0x7109709ECfa91a80626fF3989D68f67F5b1DD12D
     bytes20 constant CHEAT_CODE =
@@ -83,6 +88,7 @@ contract YAMv3Test is DSTest {
         slots[0] = 0;
         contracts[0] = yyCRV;
         helper = new HEVMHelpers();
+        yamhelper = new YAMHelper();
         user = new User();
     }
 
@@ -91,7 +97,7 @@ contract YAMv3Test is DSTest {
     //
 
     function test_rebaseTuning() public {
-        helper.makeQuorumReady(yamV3, me, user);
+        yamhelper.getQuorum(yamV3, me);
 
 
         address[] memory targets = new address[](2);
@@ -199,7 +205,7 @@ contract YAMv3Test is DSTest {
 
     function push_price_up() internal {
         if (IERC20(yyCRV).balanceOf(me) < 1000000*10**18) {
-            helper.arbitaryWriteBalance(yyCRV, me, 12008925819614629174706176);
+            yamhelper.write_balanceOf(yyCRV, me, 12008925819614629174706176);
         }
         address[] memory path = new address[](2);
         path[0] = yyCRV;

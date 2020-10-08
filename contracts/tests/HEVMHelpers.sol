@@ -9,78 +9,45 @@ interface Hevm {
     function roll(uint) external;
     function store(address,bytes32,bytes32) external;
     function load(address,bytes32) external returns (bytes32);
-    function origin(address) external;
-}
-
-contract User {
-    function doTransfer(YAMDelegator yamV3, address to, uint256 amount) external {
-        yamV3.transfer(to, amount);
-    }
 }
 
 contract HEVMHelpers is DSTest {
-    struct Checkpoint {
-        uint32 fromBlock;
-        uint256 votes;
-    }
+
+    event Debug(uint, bytes32);
+    event Logger(uint, bytes);
 
     bytes20 constant CHEAT_CODE =
         bytes20(uint160(uint(keccak256('hevm cheat code'))));
+
     mapping (address => mapping(bytes4 => uint256)) public slots;
     mapping (address => mapping(bytes4 => bool)) public finds;
 
-    function findBalanceSlot(address who, address acct) public {
-        bytes32[] memory ins = new bytes32[](1);
-        ins[0] = bytes32(uint256(acct) << 96);
-        find(
-            "balanceOf(address)", // signature to check agains
-            ins, // see slot complexity
-            0, // see slot complexity
-            abi.encode(acct), // calldata
-            who, // contract
-            bytes32(uint256(1337)), // value to set storage as
-            abi.encode(1337) // expected return value from call
-        );
-        /* Hevm hevm = Hevm(address(CHEAT_CODE));
-        for (uint256 i = 0; i < 30; i++) {
-            bytes32 prev = hevm.load(address(who),
-                     keccak256(abi.encode(address(account), uint(i))));
-
-            hevm.store(address(who),
-                       keccak256(abi.encode(address(account), uint(i))),
-                       bytes32(uint(1337)));
-
-            uint256 bal = IERC20(who).balanceOf(account);
-            if (bal == 1337) {
-               balanceSlots[who] = i;
-               recordedBalanceSlot[who] = true;
-               assertEq(balanceSlot, 1337);
-               break;
-            }
-            // reset storage
-            hevm.store(address(who),
-                       keccak256(abi.encode(address(account), uint(i))),
-                       prev);
-        } */
+    function sigs(
+        string memory sig
+    )
+        public
+        pure
+        returns (bytes4)
+    {
+        return bytes4(keccak256(bytes(sig)));
     }
 
+    /// @notice find an arbitrary storage slot given a function sig, input data, address of the contract and a value to check against
     // slot complexity:
     //  if flat, will be bytes32(uint256(uint));
     //  if map, will be keccak256(abi.encode(key, uint(slot)));
     //  if deep map, will be keccak256(abi.encode(key1, keccak256(abi.encode(key0, uint(slot)))));
-    //  if map struct, will be bytes32(uint256(keccak256(abi.encode(key1, keccak256(abi.encode(key0, uint(slot)))))) + structDepth);
+    //  if map struct, will be bytes32(uint256(keccak256(abi.encode(key1, keccak256(abi.encode(key0, uint(slot)))))) + structFieldDepth);
     function find(
         string memory sig, // signature to check agains
         bytes32[] memory ins, // see slot complexity
-        uint256 depth, // see slot complexity
-        bytes memory dat, // calldata
         address who, // contract
-        bytes32 set, // value to set storage as
-        bytes memory ret // expected return value from call
+        bytes32 set
     ) public {
         Hevm hevm = Hevm(address(CHEAT_CODE));
         // calldata to test against
         bytes4 fsig = bytes4(keccak256(bytes(sig)));
+        bytes memory dat = flatten(ins);
         bytes memory cald = abi.encodePacked(fsig, dat);
 
         // iterate thru slots
@@ -98,138 +65,369 @@ contract HEVMHelpers is DSTest {
                 // no ins, so should be flat
                 slot = bytes32(i);
             }
-            // add depth -- noop if 0
-            slot = bytes32(uint256(slot) + depth);
-
             // load slot
             bytes32 prev = hevm.load(who, slot);
             // store
             hevm.store(who, slot, set);
             // call
-            (bool pass, bytes memory rdat) = who.call(cald);
+            (bool pass, bytes memory rdat) = who.staticcall(cald);
+            bytes32 fdat = bytesToBytes32(rdat, 0);
             // check if good
-            if (equals(rdat, ret)) {
+            if (fdat == set) {
                 slots[who][fsig] = i;
                 finds[who][fsig] = true;
+                hevm.store(who, slot, prev);
+                emit Debug(i, "done");
                 break;
             }
             // reset storage
             hevm.store(who, slot, prev);
         }
+
+        require(finds[who][fsig], "!found");
     }
 
-    // Checks if two `bytes memory` variables are equal. This is done using hashing,
-    // which is much more gas efficient then comparing each byte individually.
-    // Equality means that:
-    //  - 'self.length == other.length'
-    //  - For 'n' in '[0, self.length)', 'self[n] == other[n]'
-    function equals(bytes memory self, bytes memory other)
-        internal
-        pure
-        returns (bool)
-    {
-        if (self.length != other.length) {
-            return false;
-        }
-        uint addr;
-        uint addr2;
-        assembly {
-            addr := add(self, /*BYTES_HEADER_SIZE*/32)
-            addr2 := add(other, /*BYTES_HEADER_SIZE*/32)
-        }
-        return equals(addr, addr2, self.length);
-    }
-
-    // Compares the 'len' bytes starting at address 'addr' in memory with the 'len'
-    // bytes starting at 'addr2'.
-    // Returns 'true' if the bytes are the same, otherwise 'false'.
-    function equals(uint addr, uint addr2, uint len)
-        internal
-        pure
-        returns (bool equal)
-    {
-        assembly {
-            equal := eq(keccak256(addr, len), keccak256(addr2, len))
-        }
-    }
-
-    function arbitaryWriteBalance(address who, address account, uint256 value) public {
+    /// @notice write to an arbitrary slot given a function signature
+    function writ(
+        string memory sig, // signature to check agains
+        bytes32[] memory ins, // see slot complexity
+        uint256 depth, // see slot complexity
+        address who, // contract
+        bytes32 set // value to set storage as
+    ) public {
         Hevm hevm = Hevm(address(CHEAT_CODE));
-        bytes4 sig = bytes4(keccak256(bytes("balanceOf(address)")));
-        if (!finds[who][sig]) {
-          findBalanceSlot(who, account);
+
+        bytes4 fsig = sigs(sig);
+
+        require(finds[who][fsig], "!found");
+        bytes32 slot;
+        if (ins.length > 0) {
+            for (uint256 j = 0; j < ins.length; j++) {
+                if (j != 0) {
+                    slot = keccak256(abi.encode(ins[j], slot));
+                } else {
+                    slot = keccak256(abi.encode(ins[j], slots[who][fsig]));
+                }
+            }
+        } else {
+            // no ins, so should be flat
+            slot = bytes32(slots[who][fsig]);
         }
-        bytes32 slot = bytes32(slots[who][sig]);
-        hevm.store(who, slot, bytes32(uint(value)));
+        // add depth -- noop if 0
+        slot = bytes32(uint256(slot) + depth);
+        // set storage
+        hevm.store(who, slot, set);
+    }
+
+    function write_flat(address who, string memory sig, uint256 value) public {
+        bytes32[] memory ins = new bytes32[](0);
+        if (!finds[who][sigs(sig)]) {
+            find(
+                sig,
+                ins,
+                who,
+                bytes32(uint256(13371337))
+            );
+        }
+        writ(
+            sig,
+            ins,
+            0,
+            who,
+            bytes32(value)
+        );
+    }
+
+    function write_flat(address who, string memory sig, address value) public {
+        bytes32[] memory ins = new bytes32[](0);
+        if (!finds[who][sigs(sig)]) {
+            find(
+                sig,
+                ins,
+                who,
+                bytes32(uint256(0xaaaCfBec6a24756c20D41914f2CABA817C0d8521))
+            );
+        }
+        writ(
+            sig,
+            ins,
+            0,
+            who,
+            bytes32(uint256(value))
+        );
+    }
+
+    function write_map(address who, string memory sig, uint256 key, uint256 value) public {
+        bytes32[] memory keys = new bytes32[](1);
+        keys[0] = bytes32(uint256(key));
+        if (!finds[who][sigs(sig)]) {
+            find(
+                sig,
+                keys,
+                who,
+                bytes32(uint256(13371337))
+            );
+        }
+        writ(
+            sig,
+            keys,
+            0,
+            who,
+            bytes32(value)
+        );
+    }
+
+    function write_map(address who, string memory sig, uint256 key, address value) public {
+        bytes32[] memory keys = new bytes32[](1);
+        keys[0] = bytes32(uint256(key));
+        if (!finds[who][sigs(sig)]) {
+            find(
+                sig,
+                keys,
+                who,
+                bytes32(uint256(13371337))
+            );
+        }
+        writ(
+            sig,
+            keys,
+            0,
+            who,
+            bytes32(uint256(value))
+        );
+    }
+
+
+    function write_map(address who, string memory sig, address key, uint256 value) public {
+        bytes32[] memory keys = new bytes32[](1);
+        keys[0] = bytes32(uint256(key));
+        if (!finds[who][sigs(sig)]) {
+            find(
+                sig,
+                keys,
+                who,
+                bytes32(uint256(13371337))
+            );
+        }
+        writ(
+            sig,
+            keys,
+            0,
+            who,
+            bytes32(value)
+        );
+    }
+
+    function write_map(address who, string memory sig, address key, address value) public {
+        bytes32[] memory keys = new bytes32[](1);
+        keys[0] = bytes32(uint256(key));
+        if (!finds[who][sigs(sig)]) {
+            find(
+                sig,
+                keys,
+                who,
+                bytes32(uint256(13371337))
+            );
+        }
+        writ(
+            sig,
+            keys,
+            0,
+            who,
+            bytes32(uint256(value))
+        );
+    }
+
+    function write_deep_map(address who, string memory sig, bytes32[] memory keys, uint256 value) public {
+        if (!finds[who][sigs(sig)]) {
+            find(
+                sig,
+                keys,
+                who,
+                bytes32(uint256(13371337))
+            );
+        }
+        writ(
+            sig,
+            keys,
+            0,
+            who,
+            bytes32(value)
+        );
+    }
+
+    function write_deep_map(address who, string memory sig, bytes32[] memory keys, address value) public {
+        if (!finds[who][sigs(sig)]) {
+            find(
+                sig,
+                keys,
+                who,
+                bytes32(uint256(13371337))
+            );
+        }
+        writ(
+            sig,
+            keys,
+            0,
+            who,
+            bytes32(uint256(value))
+        );
+    }
+
+    function write_deep_map_struct(address who, string memory sig, bytes32[] memory keys, uint256 value, uint256 depth) public {
+        if (!finds[who][sigs(sig)]) {
+            find(
+                sig,
+                keys,
+                who,
+                bytes32(uint256(13371337))
+            );
+        }
+        writ(
+            sig,
+            keys,
+            depth,
+            who,
+            bytes32(value)
+        );
+    }
+
+    function write_deep_map_struct(address who, string memory sig, bytes32[] memory keys, address value, uint256 depth) public {
+        if (!finds[who][sigs(sig)]) {
+            find(
+                sig,
+                keys,
+                who,
+                bytes32(uint256(13371337))
+            );
+        }
+        writ(
+            sig,
+            keys,
+            depth,
+            who,
+            bytes32(uint256(value))
+        );
+    }
+
+    function bytesToBytes32(bytes memory b, uint offset) private pure returns (bytes32) {
+        bytes32 out;
+
+        for (uint i = 0; i < 32; i++) {
+            out |= bytes32(b[offset + i] & 0xFF) >> (i * 8);
+        }
+        return out;
+    }
+
+    function flatten(bytes32[] memory b) pure internal returns (bytes memory)
+    {
+        bytes memory result = new bytes(b.length * 32);
+        for (uint256 i = 0; i < b.length; i++) {
+            bytes32 k = b[i];
+            assembly {
+                mstore(add(result, add(32, mul(32, i))), k)
+            }
+        }
+
+        return result;
+    }
+    
+    function addKnownHEVM(address who, bytes4 fsig, uint slot) public {
+        slots[who][fsig] = slot;
+        finds[who][fsig] = true;
+    }
+
+}
+
+contract YAMHelper is HEVMHelpers {
+    
+    function addKnown(address yam, string memory sig, uint256 slot) public {
+        addKnownHEVM(yam, sigs(sig), slot);
+    }
+    
+    function write_balanceOf(address who, address acct, uint256 value) public {
+        uint256 bal = IERC20(who).balanceOf(acct);
+        write_map(who, "balanceOf(address)", acct, value);
+        
+        uint256 newTS;
+        if (bal > value) {
+            uint256 negdelta = bal - value;
+            newTS = IERC20(who).totalSupply() - negdelta;
+        } else {
+            uint256 posdelta = value - bal;
+            newTS = IERC20(who).totalSupply() + posdelta;
+        }
+
+        write_flat(who, "totalSupply()", newTS);
+        assertEq(IERC20(who).totalSupply(), newTS);
+    }
+    
+    function write_balanceOfUnderlying(address who, address acct, uint256 value) public {
+        write_map(who, "balanceOfUnderlying(address)", acct, value);
     }
 
     function writeBalance(YAMDelegator yamV3, address account, uint256 value) public {
-        Hevm hevm = Hevm(address(CHEAT_CODE));
         uint256 bal = yamV3.balanceOfUnderlying(account);
-        hevm.store(address(yamV3),
-                   keccak256(abi.encode(address(account), uint(10))),
-                   bytes32(uint(value)));
+        write_map(address(yamV3), "balanceOfUnderlying(address)", account, value);
+        assertEq(yamV3.balanceOfUnderlying(account), value);
+        write_last_checkpoint(yamV3, account, value);
+        
+        uint256 newIS;
+        uint256 newTS;
         if (bal > value) {
-          uint256 negdelta = bal - value;
-          uint256 newIS = yamV3.initSupply() - negdelta;
-          uint256 newTS = yamV3.yamToFragment(newIS);
-          hevm.store(address(yamV3),
-                     bytes32(uint(12)),
-                     bytes32(newIS));
-          assertEq(yamV3.initSupply(), newIS);
-          hevm.store(address(yamV3),
-                     bytes32(uint(8)),
-                     bytes32(newTS));
-          assertEq(yamV3.totalSupply(), newTS);
+            uint256 negdelta = bal - value;
+            newIS = yamV3.initSupply() - negdelta;
+            newTS = yamV3.yamToFragment(newIS);
         } else {
-          uint256 posdelta = value - bal;
-          uint256 newIS = yamV3.initSupply() + posdelta;
-          uint256 newTS = yamV3.yamToFragment(newIS);
-
-          hevm.store(address(yamV3),
-                     bytes32(uint(12)),
-                     bytes32(newIS));
-          assertEq(yamV3.initSupply(), newIS);
-          hevm.store(address(yamV3),
-                     bytes32(uint(8)),
-                     bytes32(newTS));
-          assertEq(yamV3.totalSupply(), newTS);
+            uint256 posdelta = value - bal;
+            newIS = yamV3.initSupply() + posdelta;
+            newTS = yamV3.yamToFragment(newIS);
         }
+
+        write_flat(address(yamV3), "initSupply()", newIS);
+        assertEq(yamV3.initSupply(), newIS);
+        write_flat(address(yamV3), "totalSupply()", newTS);
+        assertEq(yamV3.totalSupply(), newTS);
     }
 
-    function makeProposalReady(YAMDelegator yamV3, address account, User user) public {
-      Hevm hevm = Hevm(address(CHEAT_CODE));
-      writeBalance(yamV3, address(user), 10**24*51000);
-      user.doTransfer(yamV3, account, yamV3.yamToFragment(10**24*51000)); // forces checkpoint
-      hevm.roll(block.number + 1);
+    function getProposal(YAMDelegator yamV3, address account) public {
+        writeBalance(yamV3, account, 10**24*51000);
     }
 
-    function makeQuorumReady(YAMDelegator yamV3, address account, User user) public {
-      Hevm hevm = Hevm(address(CHEAT_CODE));
-      writeBalance(yamV3, address(user), 10**24*210000);
-      user.doTransfer(yamV3, account, yamV3.yamToFragment(10**24*210000)); // forces checkpoint
-      hevm.roll(block.number + 1);
+    function getQuorum(YAMDelegator yamV3, address account) public {
+        writeBalance(yamV3, account, 10**24*210000);
+        bing();
+    }
+    
+    function becomeGovernor(YAMDelegator yamV3, address account) public {
+        write_flat(address(yamV3), "pendingGov()", account);
     }
 
-    function manualCheckpoint(YAMDelegator yamV3, address account, uint256 checkpoint, uint256 value) public {
-      Hevm hevm = Hevm(address(CHEAT_CODE));
-      uint256 slot = 15;
-      hevm.store(address(yamV3),
-                 bytes32(uint256(
-                   keccak256(
-                     abi.encode(
-                       uint256(safe32(checkpoint, "")),
-                       keccak256(
-                         abi.encode(account, uint(slot))
-                        )
-                     )
-                   )
-                  ) + 1),
-                 bytes32(uint(value)));
+    function manualCheckpoint(YAMDelegator yamV3, address account, uint256 checkpoint, uint256 fromBlock, uint256 votes) public {
+        Hevm hevm = Hevm(address(CHEAT_CODE));
+        bytes32[] memory keys = new bytes32[](2); 
+        keys[0] = bytes32(uint256(account));
+        keys[1] = bytes32(uint256(safe32(checkpoint, "")));
+        write_deep_map_struct(address(yamV3), "checkpoints(address,uint32)", keys, fromBlock, 0);
+        write_deep_map_struct(address(yamV3), "checkpoints(address,uint32)", keys, votes, 1);
     }
-
-    function safe32(uint n, string memory errorMessage) internal pure returns (uint32) {
+    
+    function write_last_checkpoint(YAMDelegator yamV3, address account, uint256 votes) public {
+        Hevm hevm = Hevm(address(CHEAT_CODE));
+        uint256 lcp = yamV3.numCheckpoints(account) - 1;
+        bytes32[] memory keys = new bytes32[](2); 
+        keys[0] = bytes32(uint256(account));
+        keys[1] = bytes32(uint256(safe32(lcp, "")));
+        write_deep_map_struct(address(yamV3), "checkpoints(address,uint32)", keys, votes, 1);
+    }
+    
+    function safe32(uint n, string memory errorMessage) public pure returns (uint32) {
         require(n < 2**32, errorMessage);
         return uint32(n);
+    }
+    
+    function bing() public {
+        Hevm hevm = Hevm(address(CHEAT_CODE));
+        hevm.roll(block.number + 1);
     }
 }

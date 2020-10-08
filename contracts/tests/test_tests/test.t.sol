@@ -15,7 +15,7 @@ import { GovernorAlpha } from "../../governance/YAMGovernorAlpha.sol";
 import { Timelock } from "../../governance/TimeLock.sol";
 import { YAMIncentivizer } from "../../incentivizers/YAMIncentives.sol";
 import "../../lib/UniswapRouterInterface.sol";
-import { HEVMHelpers, User } from "../HEVMHelpers.sol";
+import { YAMHelper, HEVMHelpers } from "../HEVMHelpers.sol";
 
 interface Hevm {
     function warp(uint) external;
@@ -36,9 +36,16 @@ interface YYCRV {
   function withdraw(uint256 shares) external;
 }
 
+contract User {
+    function doTransfer(YAMDelegator yamV3, address to, uint256 amount) external {
+        yamV3.transfer(to, amount);
+    }
+}
+
 contract YAMv3Test is DSTest {
     using SafeMath for uint256;
 
+    event Logger(bytes);
 
     // --- constants
     bytes20 constant CHEAT_CODE =
@@ -61,19 +68,23 @@ contract YAMv3Test is DSTest {
     // --- helpers
     Hevm hevm;
     HEVMHelpers helper;
+    YAMHelper yamhelper;
     User user;
     address me;
 
-    function setUp() public {
+    function setUpCore() public {
         hevm = Hevm(address(CHEAT_CODE));
         me = address(this);
         user = new User();
         helper = new HEVMHelpers();
+        yamhelper = new YAMHelper();
     }
 
     // --- tests
     function test_helpers() public {
-        helper.arbitaryWriteBalance(yyCRV, me, 1339);
-        assertEq(IERC20(yyCRV).balanceOf(me), 0);
+        yamhelper.write_balanceOf(yyCRV, me, 1000*10**18);
+        yamhelper.getQuorum(yamV3, me);
+        
+        assertTrue(false);
     }
 }
