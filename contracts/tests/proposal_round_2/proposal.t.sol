@@ -6,13 +6,14 @@ pragma experimental ABIEncoderV2;
 import "../test_tests/base.t.sol";
 import { YAMIncentivizerWithVoting } from "./YAMIncentivesWithVoting.sol";
 import { DualGovernorAlpha } from "./YAMGovernorAlphaWithLps.sol";
+import { YAMDelegate2 } from "./YAMDelegate.sol";
 
 contract Gov3 is YAMv3Test {
 
 
     YAMIncentivizerWithVoting voting_inc;
     DualGovernorAlpha gov3;
-    YAMDelegate new_impl;
+    YAMDelegate2 new_impl;
     address eth_yam_lp = address(0xe2aAb7232a9545F29112f9e6441661fD6eEB0a5d);
     function setUp() public {
         setUpCore();
@@ -20,7 +21,7 @@ contract Gov3 is YAMv3Test {
         address[] memory incentivizers = new address[](1);
         incentivizers[0] = address(voting_inc);
         gov3 = new DualGovernorAlpha(address(timelock), address(yamV3), incentivizers);
-        new_impl = new YAMDelegate();
+        new_impl = new YAMDelegate2();
     }
 
     //

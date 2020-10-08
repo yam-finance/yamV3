@@ -492,7 +492,7 @@ contract YAMToken is YAMGovernanceToken {
     }
 }
 
-contract YAM is YAMToken {
+contract YAMLogic2 is YAMToken {
     /**
      * @notice Initialize the new money market
      * @param name_ ERC-20 name of this token
