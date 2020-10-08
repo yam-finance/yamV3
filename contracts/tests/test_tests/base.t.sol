@@ -66,6 +66,7 @@ contract YAMv3Test is DSTest {
     YAMDelegator yamV3 = YAMDelegator(0x0AaCfbeC6a24756c20D41914F2caba817C0d8521);
     YAMIncentivizer incentivizer = YAMIncentivizer(0x5b0501F7041120d36Bc8c6DC3FAeA0b74b32a0Ed);
     YAMRebaser rebaser = YAMRebaser(0x1fB361f274f316d383B94D761832AB68099A7B00); // rebaser contract
+    YAMReserves reserves = YAMReserves(0xCF27cA116dd5C7b4201c75B46489D1c075362087);
     Timelock timelock = Timelock(0x8b4f1616751117C38a0f84F9A146cca191ea3EC5); // governance owner
     GovernorAlpha public governor = GovernorAlpha(0x78BdD33e95ECbcAC16745FB28DB0FFb703344026);
 
@@ -75,6 +76,11 @@ contract YAMv3Test is DSTest {
 
     // --- tokens
     address yyCRV = address(0x5dbcF33D8c2E976c6b560249878e6F1491Bca25c);
+    address WETH = address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+
+    // --- other
+    address multiSig = address(0x0114ee2238327A1D12c2CeB42921EFe314CBa6E6);
+    address gitcoinGrants = address(0xde21F729137C5Af1b01d73aF1dC21eFfa2B8a0d6);
 
     // --- helpers
     Hevm hevm;

@@ -14,7 +14,7 @@ interface BAL {
 }
 
 
-contract YAMRebaser {
+contract YAMRebaser2 {
 
     using SafeMath for uint256;
 
@@ -134,6 +134,9 @@ contract YAMRebaser {
     /// @notice pair for reserveToken <> YAM
     address public uniswap_pair;
 
+    /// @notice pair for reserveToken <> YAM
+    address public eth_usdc_pair;
+
     /// @notice list of uniswap pairs to sync
     address[] public uniSyncPairs;
 
@@ -144,7 +147,10 @@ contract YAMRebaser {
     uint32 public blockTimestampLast;
 
     /// @notice last TWAP cumulative price;
-    uint256 public priceCumulativeLast;
+    uint256 public priceCumulativeLastYAMETH;
+
+    /// @notice last TWAP cumulative price;
+    uint256 public priceCumulativeLastETHUSDC;
 
 
     /// @notice address to send part of treasury to
@@ -196,7 +202,12 @@ contract YAMRebaser {
           // uniswap YAM<>Reserve pair
           uniswap_pair = pairFor(uniswap_factory, token0, token1);
 
-          uniSyncPairs.push(uniswap_pair);
+
+          // get eth_usdc piar
+          address USDC = address(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
+
+          // USDC < WETH address, so USDC is token0
+          eth_usdc_pair = pairFor(uniswap_factory, USDC, reserveToken_);
 
           // Reserves contract is mutable
           reservesContract = reservesContract_;
@@ -209,15 +220,15 @@ contract YAMRebaser {
           public_goods = public_goods_;
           public_goods_perc = public_goods_perc_;
 
-          // target 10% slippage
-          // 5.4%
-          maxSlippageFactor = 5409258 * 10**10;
+          // target 5% slippage
+          // ~2.6%
+          maxSlippageFactor = 2597836 * 10**10; //5409258 * 10**10;
 
-          // 1 YYCRV
+          // $1
           targetRate = BASE;
 
-          // twice daily rebase, with targeting reaching peg in 5 days
-          rebaseLag = 10;
+          // twice daily rebase, with targeting reaching peg in 10 days
+          rebaseLag = 20;
 
           // 10%
           rebaseMintPerc = 10**17;
@@ -377,9 +388,14 @@ contract YAMRebaser {
         require(timeOfTWAPInit == 0, "already activated");
         (uint priceCumulative, uint32 blockTimestamp) =
            UniswapV2OracleLibrary.currentCumulativePrices(uniswap_pair, isToken0);
+
+       (uint priceCumulativeUSDC, ) =
+          UniswapV2OracleLibrary.currentCumulativePrices(eth_usdc_pair, false);
+
         require(blockTimestamp > 0, "no trades");
         blockTimestampLast = blockTimestamp;
-        priceCumulativeLast = priceCumulative;
+        priceCumulativeLastYAMETH = priceCumulative;
+        priceCumulativeLastETHUSDC = priceCumulativeUSDC;
         timeOfTWAPInit = blockTimestamp;
     }
 
@@ -715,28 +731,41 @@ contract YAMRebaser {
     {
         (uint priceCumulative, uint32 blockTimestamp) =
             UniswapV2OracleLibrary.currentCumulativePrices(uniswap_pair, isToken0);
+        (uint priceCumulativeETH, ) =
+            UniswapV2OracleLibrary.currentCumulativePrices(eth_usdc_pair, false);
         uint32 timeElapsed = blockTimestamp - blockTimestampLast; // overflow is desired
 
         // no period check as is done in isRebaseWindow
 
 
         // overflow is desired
-        uint256 priceAverage = uint256(uint224((priceCumulative - priceCumulativeLast) / timeElapsed));
+        uint256 priceAverageYAMETH = uint256(uint224((priceCumulative - priceCumulativeLastYAMETH) / timeElapsed));
+        uint256 priceAverageETHUSDC = uint256(uint224((priceCumulativeETH - priceCumulativeLastETHUSDC) / timeElapsed));
 
-        priceCumulativeLast = priceCumulative;
+        priceCumulativeLastYAMETH = priceCumulative;
+        priceCumulativeLastETHUSDC = priceCumulativeETH;
         blockTimestampLast = blockTimestamp;
 
         // BASE is on order of 1e18, which takes 2^60 bits
         // multiplication will revert if priceAverage > 2^196
         // (which it can because it overflows intentially)
-        if (priceAverage > uint192(-1)) {
+        uint256 YAMETHprice;
+        uint256 ETHprice;
+        if (priceAverageYAMETH > uint192(-1)) {
            // eat loss of precision
            // effectively: (x / 2**112) * 1e18
-           return (priceAverage >> 112) * BASE;
+           YAMETHprice = (priceAverageYAMETH >> 112) * BASE;
         }
         // cant overflow
         // effectively: (x * 1e18 / 2**112)
-        return (priceAverage * BASE) >> 112;
+        YAMETHprice = (priceAverageYAMETH * BASE) >> 112;
+
+        if (priceAverageETHUSDC > uint192(-1)) {
+           ETHprice = (priceAverageETHUSDC >> 112) * BASE;
+        }
+        ETHprice = (priceAverageETHUSDC * BASE) >> 112;
+
+        return YAMETHprice.mul(ETHprice).div(10**6);
     }
 
     /**
@@ -748,26 +777,38 @@ contract YAMRebaser {
         view
         returns (uint256)
     {
-      (uint priceCumulative, uint32 blockTimestamp) =
-         UniswapV2OracleLibrary.currentCumulativePrices(uniswap_pair, isToken0);
-       uint32 timeElapsed = blockTimestamp - blockTimestampLast; // overflow is desired
+        (uint priceCumulative, uint32 blockTimestamp) =
+           UniswapV2OracleLibrary.currentCumulativePrices(uniswap_pair, isToken0);
+        (uint priceCumulativeETH, ) =
+           UniswapV2OracleLibrary.currentCumulativePrices(eth_usdc_pair, false);
+
+        uint32 timeElapsed = blockTimestamp - blockTimestampLast; // overflow is desired
 
        // no period check as is done in isRebaseWindow
 
-       // overflow is desired
-        uint256 priceAverage = uint256(uint224((priceCumulative - priceCumulativeLast) / timeElapsed));
+       uint256 priceAverageYAMETH = uint256(uint224((priceCumulative - priceCumulativeLastYAMETH) / timeElapsed));
+       uint256 priceAverageETHUSDC = uint256(uint224((priceCumulativeETH - priceCumulativeLastETHUSDC) / timeElapsed));
 
-        // BASE is on order of 1e18, which takes 2^60 bits
-        // multiplication will revert if priceAverage > 2^196
-        // (which it can because it overflows intentially)
-        if (priceAverage > uint192(-1)) {
-            // eat loss of precision
-            // effectively: (x / 2**112) * 1e18
-            return (priceAverage >> 112) * BASE;
-        }
-        // cant overflow
-        // effectively: (x * 1e18 / 2**112)
-        return (priceAverage * BASE) >> 112;
+       // BASE is on order of 1e18, which takes 2^60 bits
+       // multiplication will revert if priceAverage > 2^196
+       // (which it can because it overflows intentially)
+       uint256 YAMETHprice;
+       uint256 ETHprice;
+       if (priceAverageYAMETH > uint192(-1)) {
+          // eat loss of precision
+          // effectively: (x / 2**112) * 1e18
+          YAMETHprice = (priceAverageYAMETH >> 112) * BASE;
+       }
+       // cant overflow
+       // effectively: (x * 1e18 / 2**112)
+       YAMETHprice = (priceAverageYAMETH * BASE) >> 112;
+
+       if (priceAverageETHUSDC > uint192(-1)) {
+          ETHprice = (priceAverageETHUSDC >> 112) * BASE;
+       }
+       ETHprice = (priceAverageETHUSDC * BASE) >> 112;
+
+       return YAMETHprice.mul(ETHprice).div(10**6);
     }
 
     /**

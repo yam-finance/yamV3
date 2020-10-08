@@ -331,7 +331,7 @@ contract HEVMHelpers is DSTest {
 
         return result;
     }
-    
+
     function addKnownHEVM(address who, bytes4 fsig, uint slot) public {
         slots[who][fsig] = slot;
         finds[who][fsig] = true;
@@ -340,15 +340,15 @@ contract HEVMHelpers is DSTest {
 }
 
 contract YAMHelper is HEVMHelpers {
-    
+
     function addKnown(address yam, string memory sig, uint256 slot) public {
         addKnownHEVM(yam, sigs(sig), slot);
     }
-    
+
     function write_balanceOf(address who, address acct, uint256 value) public {
         uint256 bal = IERC20(who).balanceOf(acct);
         write_map(who, "balanceOf(address)", acct, value);
-        
+
         uint256 newTS;
         if (bal > value) {
             uint256 negdelta = bal - value;
@@ -361,7 +361,7 @@ contract YAMHelper is HEVMHelpers {
         write_flat(who, "totalSupply()", newTS);
         assertEq(IERC20(who).totalSupply(), newTS);
     }
-    
+
     function write_balanceOfUnderlying(address who, address acct, uint256 value) public {
         write_map(who, "balanceOfUnderlying(address)", acct, value);
     }
@@ -371,7 +371,7 @@ contract YAMHelper is HEVMHelpers {
         write_map(address(yamV3), "balanceOfUnderlying(address)", account, value);
         assertEq(yamV3.balanceOfUnderlying(account), value);
         write_last_checkpoint(yamV3, account, value);
-        
+
         uint256 newIS;
         uint256 newTS;
         if (bal > value) {
@@ -398,36 +398,41 @@ contract YAMHelper is HEVMHelpers {
         writeBalance(yamV3, account, 10**24*210000);
         bing();
     }
-    
+
     function becomeGovernor(YAMDelegator yamV3, address account) public {
         write_flat(address(yamV3), "pendingGov()", account);
     }
 
     function manualCheckpoint(YAMDelegator yamV3, address account, uint256 checkpoint, uint256 fromBlock, uint256 votes) public {
         Hevm hevm = Hevm(address(CHEAT_CODE));
-        bytes32[] memory keys = new bytes32[](2); 
+        bytes32[] memory keys = new bytes32[](2);
         keys[0] = bytes32(uint256(account));
         keys[1] = bytes32(uint256(safe32(checkpoint, "")));
         write_deep_map_struct(address(yamV3), "checkpoints(address,uint32)", keys, fromBlock, 0);
         write_deep_map_struct(address(yamV3), "checkpoints(address,uint32)", keys, votes, 1);
     }
-    
+
     function write_last_checkpoint(YAMDelegator yamV3, address account, uint256 votes) public {
         Hevm hevm = Hevm(address(CHEAT_CODE));
         uint256 lcp = yamV3.numCheckpoints(account) - 1;
-        bytes32[] memory keys = new bytes32[](2); 
+        bytes32[] memory keys = new bytes32[](2);
         keys[0] = bytes32(uint256(account));
         keys[1] = bytes32(uint256(safe32(lcp, "")));
         write_deep_map_struct(address(yamV3), "checkpoints(address,uint32)", keys, votes, 1);
     }
-    
+
     function safe32(uint n, string memory errorMessage) public pure returns (uint32) {
         require(n < 2**32, errorMessage);
         return uint32(n);
     }
-    
+
     function bing() public {
         Hevm hevm = Hevm(address(CHEAT_CODE));
         hevm.roll(block.number + 1);
+    }
+
+    function ff(uint256 time) public {
+        Hevm hevm = Hevm(address(CHEAT_CODE));
+        hevm.warp(block.timestamp + time);
     }
 }
