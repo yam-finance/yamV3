@@ -51,6 +51,11 @@ contract User {
     }
 }
 
+
+interface ExpandedERC20 {
+  function decimals() external returns (uint256);
+}
+
 contract YAMv3Test is DSTest {
     event Logger(bytes);
 
@@ -72,15 +77,15 @@ contract YAMv3Test is DSTest {
 
     // --- uniswap
     UniRouter2 uniRouter = UniRouter2(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
-    address uniFact = address(0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f);
+    address public constant uniFact = address(0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f);
 
     // --- tokens
-    address yyCRV = address(0x5dbcF33D8c2E976c6b560249878e6F1491Bca25c);
-    address WETH = address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+    address public constant yyCRV = address(0x5dbcF33D8c2E976c6b560249878e6F1491Bca25c);
+    address public constant WETH = address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
 
     // --- other
-    address multiSig = address(0x0114ee2238327A1D12c2CeB42921EFe314CBa6E6);
-    address gitcoinGrants = address(0xde21F729137C5Af1b01d73aF1dC21eFfa2B8a0d6);
+    address public constant multiSig = address(0x0114ee2238327A1D12c2CeB42921EFe314CBa6E6);
+    address public constant gitcoinGrants = address(0xde21F729137C5Af1b01d73aF1dC21eFfa2B8a0d6);
 
     // --- helpers
     Hevm hevm;
@@ -225,5 +230,87 @@ contract YAMv3Test is DSTest {
         hevm.warp(now + timelock.delay());
 
         gov.execute(id);
+    }
+
+    // set the uniswap price relative to another
+    function set_two_hop_uni_price(
+        address main_uni_pair,
+        address secondary_uni_pair,
+        address who,
+        uint256 quote_price
+    )
+        public
+    {
+      UniswapPair secondary_pair = UniswapPair(secondary_uni_pair);
+      UniswapPair pair = UniswapPair(main_uni_pair);
+      (uint256 token0Reserves2, uint256 token1Reserves2, ) = secondary_pair.getReserves();
+
+      address token02 = secondary_pair.token0();
+      address token12 = secondary_pair.token1();
+
+      if (token02 == pair.token0() || token02 == pair.token1()) {
+          // get quote in terms of token02
+          uint256 quote = uniRouter.quote(
+              10**ExpandedERC20(token02).decimals(),
+              token0Reserves2,
+              token1Reserves2
+          );
+          // get inverse
+          quote = quote_price.mul(10**ExpandedERC20(token12).decimals()).div(quote);
+          set_uni_price(main_uni_pair, who, quote);
+      } else if (token12 == pair.token0() || token12 == pair.token1()) {
+          // get quote in terms of token12
+          uint256 quote = uniRouter.quote(
+              10**ExpandedERC20(token12).decimals(),
+              token1Reserves2,
+              token0Reserves2
+          );
+          // get inverse
+          quote = quote_price.mul(10**ExpandedERC20(token02).decimals()).div(quote);
+          set_uni_price(main_uni_pair, who, quote);
+      } else {
+        require( false, "!pair_two_hop");
+      }
+    }
+
+    // set the current uniswap price of a pair
+    function set_uni_price(
+        address uni_pair,
+        address who,
+        uint256 quote_price
+    )
+        public
+    {
+        // adjusts the price by minimally changing token balances in uniswap pair
+        UniswapPair pair = UniswapPair(uni_pair);
+        (uint256 token0Reserves, uint256 token1Reserves, ) = pair.getReserves();
+        uint256 quote;
+        if ( pair.token0() == who ) {
+            quote = uniRouter.quote(10**ExpandedERC20(who).decimals(), token0Reserves, token1Reserves);
+        } else if ( pair.token1() == who ) {
+            quote = uniRouter.quote(10**ExpandedERC20(who).decimals(), token1Reserves, token0Reserves);
+        } else {
+            require( false, "!pair" );
+        }
+
+        assertEq(quote, quote_price);
+        uint256 offPerc;
+        if (quote > quote_price) {
+            // price too high, increase reserves by off %
+            offPerc = quote.sub(quote_price).mul(BASE).div(quote_price);
+            assertEq(offPerc, 440);
+            uint256 new_bal = IERC20(who).balanceOf(uni_pair).mul(BASE.add(offPerc)).div(BASE);
+            assertEq(new_bal, IERC20(who).balanceOf(uni_pair));
+            yamhelper.write_balanceOf(who, uni_pair, new_bal);
+            pair.sync();
+        } else {
+            // price too low, decrease reserves by off %
+            offPerc = quote_price.sub(quote).mul(BASE).div(quote_price);
+            assertEq(offPerc, 441);
+            uint256 new_bal = IERC20(who).balanceOf(uni_pair).mul(BASE.sub(offPerc)).div(BASE);
+            assertEq(new_bal, IERC20(who).balanceOf(uni_pair));
+            yamhelper.write_balanceOf(who, uni_pair, new_bal);
+            pair.sync();
+        }
     }
 }

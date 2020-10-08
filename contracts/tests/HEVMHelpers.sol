@@ -339,27 +339,38 @@ contract HEVMHelpers is DSTest {
 
 }
 
+interface YAM {
+  function fragmentToYam(uint256) external returns (uint256);
+  function yamToFragment(uint256) external returns (uint256);
+}
+
 contract YAMHelper is HEVMHelpers {
+
+    address yamAddr = address(0x0AaCfbeC6a24756c20D41914F2caba817C0d8521);
 
     function addKnown(address yam, string memory sig, uint256 slot) public {
         addKnownHEVM(yam, sigs(sig), slot);
     }
 
     function write_balanceOf(address who, address acct, uint256 value) public {
-        uint256 bal = IERC20(who).balanceOf(acct);
-        write_map(who, "balanceOf(address)", acct, value);
-
-        uint256 newTS;
-        if (bal > value) {
-            uint256 negdelta = bal - value;
-            newTS = IERC20(who).totalSupply() - negdelta;
+        if (who == yamAddr) {
+            writeBalance(YAMDelegator(address(uint160(yamAddr))), acct, YAMDelegator(address(uint160(yamAddr))).fragmentToYam(value));
         } else {
-            uint256 posdelta = value - bal;
-            newTS = IERC20(who).totalSupply() + posdelta;
-        }
+            uint256 bal = IERC20(who).balanceOf(acct);
+            write_map(who, "balanceOf(address)", acct, value);
 
-        write_flat(who, "totalSupply()", newTS);
-        assertEq(IERC20(who).totalSupply(), newTS);
+            uint256 newTS;
+            if (bal > value) {
+                uint256 negdelta = bal - value;
+                newTS = IERC20(who).totalSupply() - negdelta;
+            } else {
+                uint256 posdelta = value - bal;
+                newTS = IERC20(who).totalSupply() + posdelta;
+            }
+
+            write_flat(who, "totalSupply()", newTS);
+            assertEq(IERC20(who).totalSupply(), newTS);
+        }
     }
 
     function write_balanceOfUnderlying(address who, address acct, uint256 value) public {
