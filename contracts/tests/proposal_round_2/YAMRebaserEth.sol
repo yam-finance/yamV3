@@ -3,11 +3,11 @@
 pragma solidity 0.5.15;
 pragma experimental ABIEncoderV2;
 
-import "../lib/SafeERC20.sol";
-import "../lib/SafeMath.sol";
-import '../lib/IUniswapV2Pair.sol';
-import "../lib/UniswapV2OracleLibrary.sol";
-import "../token/YAMTokenInterface.sol";
+import "../../lib/SafeERC20.sol";
+import "../../lib/SafeMath.sol";
+import '../../lib/IUniswapV2Pair.sol';
+import "../../lib/UniswapV2OracleLibrary.sol";
+import "../../token/YAMTokenInterface.sol";
 
 interface BAL {
   function gulp(address token) external;

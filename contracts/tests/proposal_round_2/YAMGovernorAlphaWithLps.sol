@@ -17,7 +17,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 // Modified to work in the YAM system
 
 
-import "../lib/SafeMath.sol";
+import "../../lib/SafeMath.sol";
 
 contract DualGovernorAlpha {
     /// @notice The name of this contract
@@ -179,7 +179,7 @@ contract DualGovernorAlpha {
     {
         // -- get prior votes for yam
         require(blockNumber < block.number, "Gov::getPriorVotes: not yet determined");
-        
+
         uint256 votes = yam.getPriorVotes(account, blockNumber);
         for (uint256 i = 0; i < incentivizers.length; i++) {
             // get prior votes for staking (stakers get full pool power)
@@ -187,7 +187,7 @@ contract DualGovernorAlpha {
         }
         return votes;
     }
-    
+
     function getCurrentVotes(address account)
         public
         returns (uint256)

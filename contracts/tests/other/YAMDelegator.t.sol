@@ -2,12 +2,12 @@
 
 pragma solidity 0.5.15;
 
-import "../lib/SafeMath.sol";
-import "../lib/SafeERC20.sol";
-import {DSTest} from "../lib/test.sol";
-import {YAMDelegator} from "./YAMDelegator.sol";
-import {YAMDelegate} from "./YAMDelegate.sol";
-import {Migrator} from "../migrator/Migrator.sol";
+import "../../lib/SafeMath.sol";
+import "../../lib/SafeERC20.sol";
+import {DSTest} from "../../lib/test.sol";
+import {YAMDelegator} from "../../token/YAMDelegator.sol";
+import {YAMDelegate} from "../../token/YAMDelegate.sol";
+import {Migrator} from "../../migrator/Migrator.sol";
 
 interface Hevm {
     function warp(uint) external;
@@ -313,39 +313,39 @@ contract YAMv3Test is DSTest {
     function test_direct_rebase() public {
         yamV3._setRebaser(me);
         assertEq(yamV3.rebaser(), me);
-    
+
         // positive rebase
         uint256 balance = yamV3.balanceOf(me);
         uint256 underlying = yamV3.balanceOfUnderlying(me);
-    
+
         uint256 totalSupply = yamV3.rebase(1, 10**17, true);
-    
+
         uint256 scalingFactor = yamV3.yamsScalingFactor();
         assertEq(scalingFactor, 11*10**17);
-    
+
         assertEq(totalSupply, balance.mul(scalingFactor).div(BASE));
-    
+
         assertEq(yamV3.initSupply(), underlying);
-    
+
         // negative rebase
         totalSupply = yamV3.rebase(2, 10**17, false);
-    
+
         scalingFactor = yamV3.yamsScalingFactor();
         assertEq(scalingFactor, 99*10**16);
-    
+
         // rounding error
         assertEq(totalSupply, balance.mul(scalingFactor).div(BASE) + 1);
-    
+
         assertEq(yamV3.initSupply(), underlying);
-    
+
         // zero rebase
         totalSupply = yamV3.rebase(3, 0, false);
-    
+
         scalingFactor = yamV3.yamsScalingFactor();
         assertEq(scalingFactor, 99*10**16);
-    
+
         assertEq(totalSupply, balance.mul(scalingFactor).div(BASE) + 1);
-    
+
         assertEq(yamV3.initSupply(), underlying);
     }
 

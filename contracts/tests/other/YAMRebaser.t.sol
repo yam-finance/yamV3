@@ -2,14 +2,14 @@
 
 pragma solidity 0.5.15;
 
-import "../lib/SafeMath.sol";
-import "../lib/SafeERC20.sol";
-import {DSTest} from "../lib/test.sol";
-import {YAMDelegator} from "../token/YAMDelegator.sol";
-import {YAMDelegate} from "../token/YAMDelegate.sol";
-import {Migrator} from "../migrator/Migrator.sol";
-import "./YAMRebaser.sol";
-import "../lib/UniswapRouterInterface.sol";
+import "../../lib/SafeMath.sol";
+import "../../lib/SafeERC20.sol";
+import {DSTest} from "../../lib/test.sol";
+import {YAMDelegator} from "../../token/YAMDelegator.sol";
+import {YAMDelegate} from "../../token/YAMDelegate.sol";
+import {Migrator} from "../../migrator/Migrator.sol";
+import "../../rebaser/YAMRebaser.sol";
+import "../../lib/UniswapRouterInterface.sol";
 
 interface Hevm {
     function warp(uint) external;

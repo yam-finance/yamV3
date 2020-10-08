@@ -14,7 +14,6 @@ import { YAMReserves } from "../../reserves/YAMReserves.sol";
 import { GovernorAlpha } from "../../governance/YAMGovernorAlpha.sol";
 import { Timelock } from "../../governance/TimeLock.sol";
 import { YAMIncentivizer } from "../../incentivizers/YAMIncentives.sol";
-import { YAMIncentivizerWithVoting } from "../../incentivizers/YAMIncentivesWithVoting.sol";
 import "../../lib/UniswapRouterInterface.sol";
 import "../../lib/IUniswapV2Pair.sol";
 import { YAMHelper, HEVMHelpers } from "../HEVMHelpers.sol";
@@ -42,7 +41,7 @@ contract User {
     function doTransfer(YAMDelegator yamV3, address to, uint256 amount) external {
         yamV3.transfer(to, amount);
     }
-    
+
     function doStake(YAMHelper yamhelper, address incentivizer, uint256 amount) external {
         YAMIncentivizer inc = YAMIncentivizer(incentivizer);
         address lp_token = address(inc.uni_lp());
@@ -54,7 +53,7 @@ contract User {
 
 contract YAMv3Test is DSTest {
     event Logger(bytes);
-    
+
     using SafeMath for uint256;
 
 
@@ -98,7 +97,7 @@ contract YAMv3Test is DSTest {
     }
 
     // --- helpers
-    
+
     function joinYYCRV_YAMPool() internal {
         IERC20(yyCRV).approve(address(uniRouter), uint256(-1));
         yamV3.approve(address(uniRouter), uint256(-1));
@@ -126,7 +125,7 @@ contract YAMv3Test is DSTest {
             now + 60
         );
     }
-    
+
     function pairFor(
         address factory,
         address token0,
@@ -143,18 +142,18 @@ contract YAMv3Test is DSTest {
                 hex'96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f' // init code hash
             ))));
     }
-    
-    
+
+
     function vote_pos_latest() public {
         hevm.roll(block.number + 10);
-        GovernorAlpha curr_gov = GovernorAlpha(timelock.admin()); 
+        GovernorAlpha curr_gov = GovernorAlpha(timelock.admin());
         uint256 id = curr_gov.latestProposalIds(me);
         curr_gov.castVote(id, true);
     }
-    
+
     function timelock_accept_gov() public {
         //
-        GovernorAlpha curr_gov = GovernorAlpha(timelock.admin()); 
+        GovernorAlpha curr_gov = GovernorAlpha(timelock.admin());
         yamhelper.getQuorum(yamV3, me);
         address[] memory targets = new address[](1);
         targets[0] = address(yamV3); // rebaser
@@ -187,9 +186,9 @@ contract YAMv3Test is DSTest {
 
         curr_gov.execute(id);
     }
-    
+
     function roll_prop(
-        address[] memory targets, 
+        address[] memory targets,
         uint256[] memory values,
         string[] memory signatures,
         bytes[] memory calldatas,
@@ -205,20 +204,20 @@ contract YAMv3Test is DSTest {
             calldatas,
             description
         );
-    
+
         uint256 id = gov.latestProposalIds(me);
-    
+
         vote_pos_latest();
-    
+
         hevm.roll(block.number +  12345);
-    
+
         GovernorAlpha.ProposalState state = gov.state(id);
         assertTrue(state == GovernorAlpha.ProposalState.Succeeded);
-    
+
         gov.queue(id);
-    
+
         hevm.warp(now + timelock.delay());
-    
+
         gov.execute(id);
     }
 }
