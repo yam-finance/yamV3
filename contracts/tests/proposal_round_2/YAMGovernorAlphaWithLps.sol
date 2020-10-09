@@ -158,6 +158,10 @@ contract DualGovernorAlpha {
     function addIncentivizer(address incentivizer)
         public
     {
+        // as a sanity check, make sure it has the function and there is no error
+        // otherwise could brick governance
+        Incentivizer(incentivizer).getPriorVotes(guardian, block.number - 1);
+
         require(msg.sender == address(timelock), "GovernorAlpha::!timelock");
         incentivizers.push(incentivizer);
     }
