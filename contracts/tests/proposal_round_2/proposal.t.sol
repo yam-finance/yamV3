@@ -21,6 +21,8 @@ contract Prop2 is YAMv3Test {
     function setUp() public {
         setUpCore();
         voting_inc = new YAMIncentivizerWithVoting();
+        voting_inc.setRewardDistribution(address(timelock));
+        voting_inc.transferOwnership(address(timelock));
         address[] memory incentivizers = new address[](1);
         incentivizers[0] = address(voting_inc);
         gov3 = new DualGovernorAlpha(address(timelock), address(yamV3), incentivizers);
@@ -35,12 +37,115 @@ contract Prop2 is YAMv3Test {
           gitcoinGrants, // gitcoin grant multisig
           10**16 // percentage to gitcoin grants
         );
-        setup_rebaser();
+        /* setup_rebaser(); */
     }
 
     //
     // TESTS
     //
+    function test_FullProp() public {
+        address[] memory targets = new address[](8);
+        uint256[] memory values = new uint256[](8);
+        string[] memory signatures = new string[](8);
+        bytes[] memory calldatas = new bytes[](8);
+        string memory description = "Proposal round 2";
+
+        // -- update rebaser
+        targets[0] = address(yamV3);
+        signatures[0] = "_setRebaser(address)";
+        calldatas[0] = abi.encode(address(eth_rebaser));
+        targets[1] = address(reserves);
+        signatures[1] = "_setRebaser(address)";
+        calldatas[1] = abi.encode(address(eth_rebaser));
+
+        // -- setting implementation
+        targets[2] = address(yamV3);
+        signatures[2] = "_setImplementation(address,bool,bytes)";
+        calldatas[2] = abi.encode(address(new_impl), false, "");
+
+        // -- assign self delegation for eth/yam pool
+        targets[3] = address(yamV3);
+        calldatas[3] = abi.encodeWithSignature(
+            "delegateToImplementation(bytes)",
+            abi.encodeWithSignature("assignSelfDelegate(address)", eth_yam_lp)
+        );
+
+        // -- turn off old incentivizer
+        targets[4] = address(incentivizer);
+        signatures[4] = "setBreaker(bool)";
+        calldatas[4] = abi.encode(true);
+
+        // -- set new incentivizer
+        targets[5] = address(yamV3);
+        signatures[5] = "_setIncentivizer(address)";
+        calldatas[5] = abi.encode(address(voting_inc));
+
+        // -- initialize incentivizer
+        targets[6] = address(voting_inc);
+        signatures[6] = "notifyRewardAmount(uint256)";
+        calldatas[6] = abi.encode(uint256(0));
+
+        // -- new governor
+        targets[7] = address(timelock);
+        signatures[7] = "setPendingAdmin(address)";
+        calldatas[7] = abi.encode(address(gov3));
+
+        yamhelper.getQuorum(yamV3, me);
+
+        roll_prop(
+          targets,
+          values,
+          signatures,
+          calldatas,
+          description
+        );
+
+        assertEq(reserves.rebaser(), address(eth_rebaser));
+        assertEq(yamV3.rebaser(), address(eth_rebaser));
+
+        assertEq(yamV3.implementation(), address(new_impl));
+
+        assertEq(yamV3.delegates(eth_yam_lp), eth_yam_lp);
+
+        assertTrue(incentivizer.breaker());
+
+        assertEq(yamV3.incentivizer(), address(voting_inc));
+
+        assertTrue(voting_inc.initialized());
+
+        assertEq(timelock.pendingAdmin(), address(gov3));
+
+        gov3.__acceptAdmin();
+
+        assertEq(timelock.admin(), address(gov3));
+
+        // -- increase liquidity by 10x
+        increase_liquidity(eth_yam_lp, 10);
+
+        // -- initialize twap
+        set_two_hop_uni_price(eth_yam_lp, eth_usdc_lp, address(yamV3), 120 * 10**16);
+        eth_rebaser.init_twap();
+        yamhelper.ff(12 hours);
+        eth_rebaser.activate_rebasing();
+
+        // -- fast forward to rebase
+        ff_rebase();
+
+        // -- call rebase
+        eth_rebaser.rebase();
+
+        yamhelper.bing();
+
+        // -- get LP voting power
+        yamhelper.write_balanceOf(eth_yam_lp, me, 990*10**18);
+        IERC20(eth_yam_lp).approve(address(voting_inc), uint(-1));
+        voting_inc.stake(IERC20(eth_yam_lp).balanceOf(me));
+        uint256 total_voting_pow = yamV3.getCurrentVotes(me) + voting_inc.getCurrentVotes(me);
+        assertEq(total_voting_pow, gov3.getCurrentVotes(me));
+        yamhelper.bing();
+        assertEq(total_voting_pow, gov3.getPriorVotes(me, block.number - 1));
+    }
+
     function test_LPVotingPower() public {
         // test includes:
         // -- increase lp token balance
@@ -53,12 +158,15 @@ contract Prop2 is YAMv3Test {
         // -- check voting power
         // -- add another staker, that is 1% of staking pool
         // -- check voting power
+        // -- delegate
+        // -- check voting power
+        // -- delegate self (checking for duplication)
+        // -- check voting power
 
         // -- force verbose output
         assertTrue(false);
 
         // -- increase balance
-
         yamhelper.write_balanceOf(eth_yam_lp, me, 990*10**18); // we inflate away most other holders to simulate large number of stakers
 
         // -- own existing incentivizer
@@ -105,6 +213,24 @@ contract Prop2 is YAMv3Test {
         // -- check voting power
         assertEq(voting_inc.getPriorVotes(me, block.number - 1), poolPower * 99 / 100);
         assertEq(voting_inc.getPriorVotes(address(user), block.number - 1), poolPower / 100);
+
+        // -- check delegation
+        user.doDelegate(address(voting_inc), me);
+        assertEq(voting_inc.delegates(address(user)), me);
+        yamhelper.bing();
+
+        // -- check voting power
+        assertEq(voting_inc.getPriorVotes(me, block.number - 1), poolPower);
+        assertEq(voting_inc.getPriorVotes(address(user), block.number - 1), 0);
+
+        // -- check delegation (no duplicating votes)
+        voting_inc.delegate(me);
+        assertEq(voting_inc.delegates(me), me);
+        yamhelper.bing();
+
+        // -- check voting power
+        assertEq(voting_inc.getPriorVotes(me, block.number - 1), poolPower);
+        assertEq(voting_inc.getPriorVotes(address(user), block.number - 1), 0);
     }
 
     function test_LPVotingGov3() public {
@@ -165,11 +291,16 @@ contract Prop2 is YAMv3Test {
         timelock_accept_gov(address(yamV3));
         assertEq(yamV3.gov(), address(timelock));
 
+        // -- check voting powers
+        uint256 total_voting_pow = yamV3.getCurrentVotes(me) + voting_inc.getCurrentVotes(me);
+        assertEq(total_voting_pow, gov3.getCurrentVotes(me));
+        yamhelper.bing();
+        assertEq(total_voting_pow, gov3.getPriorVotes(me, block.number - 1));
+
+
         // -- at this point, the new incentivizer is setup
-        // the new governor is setup, me has the 90% voting power of the
+        // the new governor is setup, me has the 99% voting power of the
         // lp pool
-        // to test new gov, we need to make a new proposal and vote and check
-        // vote count to see if it matches expected value
 
         // -- lets test with adding a new sync pair for sushiswap eth/yam
 
@@ -222,7 +353,7 @@ contract Prop2 is YAMv3Test {
         ff_rebase();
         eth_rebaser.rebase();
 
-        
+
         set_two_hop_uni_price(eth_yam_lp, eth_usdc_lp, address(yamV3), 90 * 10**16);
         yamhelper.ff(6 hours);
         assertEq(eth_rebaser.getCurrentTWAP(), 3);

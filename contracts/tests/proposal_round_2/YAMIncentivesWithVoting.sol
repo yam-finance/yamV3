@@ -889,7 +889,7 @@ interface YAM {
 contract YAMIncentivizerWithVoting is LPTokenWrapper, IRewardDistributionRecipient {
     uint256 public constant DURATION = 7 days;
 
-    uint256 public initreward = 674325 * 10**48; // 67432.5 yams
+    uint256 public initreward = 674325 * 10**4; // 67432.5 yams
     uint256 public starttime = 1601928000; // Monday, October 5, 2020 8:00:00 PM (UTC +00:00)
 
     uint256 public periodFinish = 0;
@@ -997,8 +997,9 @@ contract YAMIncentivizerWithVoting is LPTokenWrapper, IRewardDistributionRecipie
         updateReward(address(0))
     {
         // https://sips.synthetix.io/sips/sip-77
-        require(reward < uint256(-1) / 10**18, "rewards too large, would lock");
-        if (block.timestamp > starttime) {
+        // increased buffer for scaling factor ( supports up to 10**4 * 10**18 scaling factor)
+        require(reward < uint256(-1) / 10**22, "rewards too large, would lock");
+        if (block.timestamp > starttime && initialized) {
           if (block.timestamp >= periodFinish) {
               rewardRate = reward.div(DURATION);
           } else {
@@ -1010,14 +1011,17 @@ contract YAMIncentivizerWithVoting is LPTokenWrapper, IRewardDistributionRecipie
           periodFinish = block.timestamp.add(DURATION);
           emit RewardAdded(reward);
         } else {
-          require(initreward < uint256(-1) / 10**18, "rewards too large, would lock");
+          // increased buffer for scaling factor
+          require(initreward < uint256(-1) / 10**22, "rewards too large, would lock");
           require(!initialized, "already initialized");
           initialized = true;
-          yam.mint(address(this), initreward);
+          uint256 scalingFactor = YAM(address(yam)).yamsScalingFactor();
+          uint256 newRewards = initreward.mul(scalingFactor).div(10**18);
+          yam.mint(address(this), newRewards);
           rewardRate = initreward.div(DURATION);
           lastUpdateTime = starttime;
           periodFinish = starttime.add(DURATION);
-          emit RewardAdded(reward);
+          emit RewardAdded(newRewards);
         }
     }
 

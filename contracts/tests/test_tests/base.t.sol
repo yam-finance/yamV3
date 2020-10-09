@@ -49,6 +49,11 @@ contract User {
         IERC20(lp_token).approve(address(inc), uint(-1));
         inc.stake(amount);
     }
+
+    function doDelegate(address can_delegate, address delegatee) external {
+        YAMDelegator can_del = YAMDelegator(address(uint160(can_delegate)));
+        can_del.delegate(delegatee);
+    }
 }
 
 
@@ -286,7 +291,6 @@ contract YAMv3Test is DSTest {
             offPerc = quote.sub(quote_price).mul(BASE).div(quote_price);
             /* assertEq(offPerc, 440); */
             uint256 new_bal = IERC20(who).balanceOf(uni_pair).mul(BASE.add(offPerc)).div(BASE);
-            assertEq(new_bal, IERC20(who).balanceOf(uni_pair));
             yamhelper.write_balanceOf(who, uni_pair, new_bal);
             pair.sync();
         } else {
@@ -294,7 +298,6 @@ contract YAMv3Test is DSTest {
             offPerc = quote_price.sub(quote).mul(BASE).div(quote_price);
             /* assertEq(offPerc, 441); */
             uint256 new_bal = IERC20(who).balanceOf(uni_pair).mul(BASE.sub(offPerc)).div(BASE);
-            assertEq(new_bal, IERC20(who).balanceOf(uni_pair));
             yamhelper.write_balanceOf(who, uni_pair, new_bal);
             pair.sync();
         }
@@ -321,7 +324,6 @@ contract YAMv3Test is DSTest {
     function atomicGov(address has_gov, string memory sig, address acct) public {
         // may or may not be YAMDelegator
         bytes32[][] memory ins = new bytes32[][](1);
-        assertEq(uint(1), 0);
         ins[0] = new bytes32[](1);
         ins[0][0] = bytes32(uint256(acct));
         string[] memory sigs = new string[](1);
@@ -332,7 +334,6 @@ contract YAMv3Test is DSTest {
     function atomicGov(address has_gov, string memory sig, uint val) public {
         // may or may not be YAMDelegator
         bytes32[][] memory ins = new bytes32[][](1);
-        assertEq(uint(1), 0);
         ins[0] = new bytes32[](1);
         ins[0][0] = bytes32(val);
         string[] memory sigs = new string[](1);
