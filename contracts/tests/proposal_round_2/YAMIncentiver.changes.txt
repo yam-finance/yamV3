@@ -1,0 +1,321 @@
+608c608
+< contract LPTokenWrapper is Ownable {
+---
+> contract LPTokenWrapper {
+612,616c612
+<     IERC20 public uni_lp = IERC20(0xe2aAb7232a9545F29112f9e6441661fD6eEB0a5d);
+<     IERC20 public yam = IERC20(0x0AaCfbeC6a24756c20D41914F2caba817C0d8521);
+< 
+<     uint256 public minBlockBeforeVoting;
+<     bool public minBlockSet;
+---
+>     IERC20 public uni_lp = IERC20(0xb93Cc05334093c6B3b8Bfd29933bb8d5C031caBC);
+620,621d615
+<     uint256 public constant BASE = 10**18;
+< 
+624,643d617
+< 
+<     mapping(address => address) public delegates;
+< 
+<     /// @notice A checkpoint for marking number of lp tokens staked from a given block
+<     struct Checkpoint {
+<         uint32 fromBlock;
+<         uint256 lpStake;
+<     }
+< 
+<     /// @notice A record of votes checkpoints for each account, by index
+<     mapping (address => mapping (uint32 => Checkpoint)) public checkpoints;
+< 
+<     /// @notice The number of checkpoints for each account
+<     mapping (address => uint32) public numCheckpoints;
+< 
+<     /// @notice The number of checkpoints for total supply
+<     mapping (uint32 => Checkpoint) public totalSupplyCheckpoints;
+< 
+<     uint32 public numSupplyCheckpoints;
+< 
+652,686d625
+<     function delegate(address delegatee) public {
+<         _delegate(msg.sender, delegatee);
+<     }
+< 
+<     function _delegate(address delegator, address delegatee)
+<         internal
+<     {
+<         address currentDelegate = delegates[msg.sender];
+<         uint256 delegatorBalance = _balances[msg.sender];
+<         delegates[msg.sender] = delegatee;
+< 
+<         _moveDelegates(currentDelegate, delegatee, delegatorBalance);
+<     }
+< 
+<     function _moveDelegates(address srcRep, address dstRep, uint256 amount) internal {
+<         if (srcRep != dstRep && amount > 0) {
+<             if (srcRep != address(0)) {
+<                 // decrease old representative
+<                 uint32 srcRepNum = numCheckpoints[srcRep];
+<                 uint256 srcRepOld = srcRepNum > 0 ? checkpoints[srcRep][srcRepNum - 1].lpStake : 0;
+<                 uint256 srcRepNew = srcRepOld.sub(amount);
+<                 _writeCheckpoint(srcRep, srcRepNum, srcRepNew);
+<             }
+< 
+<             if (dstRep != address(0)) {
+<                 // increase new representative
+<                 uint32 dstRepNum = numCheckpoints[dstRep];
+<                 uint256 dstRepOld = dstRepNum > 0 ? checkpoints[dstRep][dstRepNum - 1].lpStake : 0;
+<                 uint256 dstRepNew = dstRepOld.add(amount);
+<                 _writeCheckpoint(dstRep, dstRepNum, dstRepNew);
+<             }
+<         }
+<     }
+< 
+< 
+689,697c628
+<         uint256 new_bal = _balances[msg.sender].add(amount);
+<         _balances[msg.sender] = new_bal;
+<         address delegate = delegates[msg.sender];
+<         if (delegate == address(0)) {
+<           delegates[msg.sender] = msg.sender;
+<           delegate = msg.sender;
+<         }
+<         _moveDelegates(address(0), delegate, amount);
+<         _writeSupplyCheckpoint();
+---
+>         _balances[msg.sender] = _balances[msg.sender].add(amount);
+703,706c634
+<         uint256 new_bal = _balances[msg.sender].sub(amount);
+<         _balances[msg.sender] = new_bal;
+<         _moveDelegates(delegates[msg.sender], address(0), amount);
+<         _writeSupplyCheckpoint();
+---
+>         _balances[msg.sender] = _balances[msg.sender].sub(amount);
+709,879d636
+< 
+<     /**
+<      * @notice Gets the current votes balance for `account`
+<      * @param account The address to get votes balance
+<      * @return The number of current votes for `account`
+<      */
+<     function getCurrentVotes(address account)
+<         external
+<         view
+<         returns (uint256)
+<     {
+<         uint256 poolVotes = YAM(address(yam)).getCurrentVotes(address(uni_lp));
+<         uint32 nCheckpoints = numCheckpoints[account];
+<         uint256 lpStake = nCheckpoints > 0 ? checkpoints[account][nCheckpoints - 1].lpStake : 0;
+<         uint256 percOfVotes = lpStake.mul(BASE).div(_totalSupply);
+<         return poolVotes.mul(percOfVotes).div(BASE);
+<     }
+< 
+<     function getPriorVotes(address account, uint256 blockNumber)
+<         public
+<         view
+<         returns (uint256)
+<     {
+<         require(blockNumber < block.number, "Incentivizer::_getPriorLPStake: not yet determined");
+<         if (blockNumber < minBlockBeforeVoting) {
+<             return 0;
+<         }
+<         // get incentivizer's uniswap pool yam votes
+<         uint256 poolVotes = YAM(address(yam)).getPriorVotes(address(uni_lp), blockNumber);
+< 
+<         // get prior stake
+<         uint256 priorStake = _getPriorLPStake(account, blockNumber);
+< 
+<         // get prior LP stake
+<         uint256 lpTotalSupply = getPriorSupply(blockNumber);
+< 
+<         // get percent ownership of staked LPs
+<         uint256 percentOfVote = priorStake.mul(BASE).div(lpTotalSupply);
+< 
+<         // votes * percentage / percentage max
+<         // note: this will overestimate the number of votes based on
+<         //       % of LP pool tokens staked here
+<         return poolVotes.mul(percentOfVote).div(BASE);
+<     }
+< 
+<     function getPriorLPStake(address account, uint256 blockNumber)
+<         public
+<         view
+<         returns (uint256)
+<     {
+<         require(blockNumber < block.number, "Incentivizer::_getPriorLPStake: not yet determined");
+<         return _getPriorLPStake(account, blockNumber);
+<     }
+< 
+<     function _getPriorLPStake(address account, uint256 blockNumber)
+<         internal
+<         view
+<         returns (uint256)
+<     {
+<         uint32 nCheckpoints = numCheckpoints[account];
+<         if (nCheckpoints == 0) {
+<             return 0;
+<         }
+< 
+<         // First check most recent balance
+<         if (checkpoints[account][nCheckpoints - 1].fromBlock <= blockNumber) {
+<             return checkpoints[account][nCheckpoints - 1].lpStake;
+<         }
+< 
+<         // Next check implicit zero balance
+<         if (checkpoints[account][0].fromBlock > blockNumber) {
+<             return 0;
+<         }
+< 
+<         uint32 lower = 0;
+<         uint32 upper = nCheckpoints - 1;
+<         while (upper > lower) {
+<             uint32 center = upper - (upper - lower) / 2; // ceil, avoiding overflow
+<             Checkpoint memory cp = checkpoints[account][center];
+<             if (cp.fromBlock == blockNumber) {
+<                 return cp.lpStake;
+<             } else if (cp.fromBlock < blockNumber) {
+<                 lower = center;
+<             } else {
+<                 upper = center - 1;
+<             }
+<         }
+<         return checkpoints[account][lower].lpStake;
+<     }
+< 
+<     function _writeCheckpoint(
+<         address delegatee,
+<         uint32 nCheckpoints,
+<         uint256 newStake
+<     )
+<         internal
+<     {
+<         // this means this contract can lock funds in approximately 1766 years from now.
+<         uint32 blockNumber = safe32(block.number, "Incentivizer::_writeCheckpoint: block number exceeds 32 bits");
+< 
+<         if (nCheckpoints > 0 && checkpoints[delegatee][nCheckpoints - 1].fromBlock == blockNumber) {
+<             checkpoints[delegatee][nCheckpoints - 1].lpStake = newStake;
+<         } else {
+<             checkpoints[delegatee][nCheckpoints] = Checkpoint(blockNumber, newStake);
+<             numCheckpoints[delegatee] = nCheckpoints + 1;
+<         }
+<     }
+< 
+<     function _writeSupplyCheckpoint()
+<         internal
+<     {
+<         uint32 blockNumber = safe32(block.number, "Incentivizer::_writeSupplyCheckpoint: block number exceeds 32 bits");
+< 
+<         // overwrite totalSupplyCheckpoint for block, increment counter if needed
+<         if (numSupplyCheckpoints > 0 && totalSupplyCheckpoints[numSupplyCheckpoints - 1].fromBlock == blockNumber) {
+<             totalSupplyCheckpoints[numSupplyCheckpoints - 1].lpStake = _totalSupply;
+<         } else {
+<             totalSupplyCheckpoints[numSupplyCheckpoints] = Checkpoint(blockNumber, _totalSupply);
+<             numSupplyCheckpoints += 1;
+<         }
+<     }
+< 
+<     function getPriorSupply(uint256 blockNumber)
+<         public
+<         view
+<         returns (uint256)
+<     {
+<         if (numSupplyCheckpoints == 0) {
+<             return 0;
+<         }
+< 
+<         // First check most recent balance
+<         if (totalSupplyCheckpoints[numSupplyCheckpoints - 1].fromBlock <= blockNumber) {
+<             return totalSupplyCheckpoints[numSupplyCheckpoints - 1].lpStake;
+<         }
+< 
+<         // Next check implicit zero balance
+<         if (totalSupplyCheckpoints[0].fromBlock > blockNumber) {
+<             return 0;
+<         }
+< 
+<         uint32 lower = 0;
+<         uint32 upper = numSupplyCheckpoints - 1;
+<         while (upper > lower) {
+<             uint32 center = upper - (upper - lower) / 2; // ceil, avoiding overflow
+<             Checkpoint memory cp = totalSupplyCheckpoints[center];
+<             if (cp.fromBlock == blockNumber) {
+<                 return cp.lpStake;
+<             } else if (cp.fromBlock < blockNumber) {
+<                 lower = center;
+<             } else {
+<                 upper = center - 1;
+<             }
+<         }
+<         return totalSupplyCheckpoints[lower].lpStake;
+<     }
+< 
+<     function safe32(uint n, string memory errorMessage) internal pure returns (uint32) {
+<         require(n < 2**32, errorMessage);
+<         return uint32(n);
+<     }
+< 
+<     function setMinBlockBeforeVoting(uint256 blockNum)
+<         external
+<     {
+<         // only gov
+<         require(msg.sender == owner(), "!governance");
+<         require(!minBlockSet, "minBlockSet");
+<         minBlockBeforeVoting = blockNum;
+<         minBlockSet = true;
+<     }
+885,886d641
+<     function getPriorVotes(address account, uint256 blockNumber) external view returns (uint256);
+<     function getCurrentVotes(address account) external view returns (uint256);
+889c644,645
+< contract YAMIncentivizerWithVoting is LPTokenWrapper, IRewardDistributionRecipient {
+---
+> contract YAMIncentivizer is LPTokenWrapper, IRewardDistributionRecipient {
+>     IERC20 public yam = IERC20(0x0AaCfbeC6a24756c20D41914F2caba817C0d8521);
+892,894c648,649
+<     uint256 public initreward = 674325 * 10**17; // 67432.5 yams
+<     uint256 public starttime = 1601928000; // Monday, October 5, 2020 8:00:00 PM (UTC +00:00)
+< 
+---
+>     uint256 public initreward = 925 * 10**2 * 10**18; // 92.5k
+>     uint256 public starttime = 1600545600; // 2020-09-19 8:00:00 PM (UTC +00:00)
+903d657
+< 
+950c704
+<     function stake(uint256 amount) public updateReward(msg.sender) checkhalve {
+---
+>     function stake(uint256 amount) public updateReward(msg.sender) checkhalve checkStart {
+956c710
+<     function withdraw(uint256 amount) public updateReward(msg.sender) {
+---
+>     function withdraw(uint256 amount) public updateReward(msg.sender) checkStart {
+967c721
+<     function getReward() public updateReward(msg.sender) checkhalve {
+---
+>     function getReward() public updateReward(msg.sender) checkhalve checkStart {
+993a748,753
+>     modifier checkStart(){
+>         require(block.timestamp >= starttime,"not start");
+>         _;
+>     }
+> 
+> 
+1000,1002c760,761
+<         // increased buffer for scaling factor ( supports up to 10**4 * 10**18 scaling factor)
+<         require(reward < uint256(-1) / 10**22, "rewards too large, would lock");
+<         if (block.timestamp > starttime && initialized) {
+---
+>         require(reward < uint256(-1) / 10**18, "rewards too large, would lock");
+>         if (block.timestamp > starttime) {
+1014,1015c773
+<           // increased buffer for scaling factor
+<           require(initreward < uint256(-1) / 10**22, "rewards too large, would lock");
+---
+>           require(initreward < uint256(-1) / 10**18, "rewards too large, would lock");
+1018,1020c776
+<           uint256 scalingFactor = YAM(address(yam)).yamsScalingFactor();
+<           uint256 newRewards = initreward.mul(scalingFactor).div(10**18);
+<           yam.mint(address(this), newRewards);
+---
+>           yam.mint(address(this), initreward);
+1024c780
+<           emit RewardAdded(newRewards);
+---
+>           emit RewardAdded(reward);
