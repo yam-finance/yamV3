@@ -27,15 +27,13 @@ well as storage of a new variable to keep track of ETH/USDC cumulative price.
 
 There are a few places in the protocol that need to reference the new rebaser. Here are the functions that governance needs to call.
 - Action: Set a new rebaser in the reserves contract
- - Target: `reserves`
-   - function: `_setRebaser(address)`
-   - data: `address(eth_rebaser)`
-</br>
-</br>
+  - Target: `reserves`
+    - function: `_setRebaser(address)`
+    - data: `address(eth_rebaser)`
 - Action: Set new rebaser in the YAM token contract
- - Target: `yamV3`
-   - function: `_setRebaser(address)`
-   - data: `address(eth_rebaser)`  
+  - Target: `yamV3`
+    - function: `_setRebaser(address)`
+    - data: `address(eth_rebaser)`  
  </br>
  </br>
 
@@ -43,9 +41,9 @@ Additionally, we want to add sync support for Sushiswap YAM/ETH. We also want to
 continue to support YAM/yUSD sync support as there likely will be some zombie liquidity.
 Therefore, we should add the following to the proposal:
 - Action: Add YAM/ETH sushiswap and YAM/yUSD as sync pairs to new rebaser
- - Target: `eth_rebaser`
-   - function: `addSyncPairs(address[],address[])`
-   - data: `([0x95b54C8Da12BB23F7A5F6E26C38D04aCC6F81820, 0xb93Cc05334093c6B3b8Bfd29933bb8d5C031caBC],[])`
+  - Target: `eth_rebaser`
+    - function: `addSyncPairs(address[],address[])`
+    - data: `([0x95b54C8Da12BB23F7A5F6E26C38D04aCC6F81820, 0xb93Cc05334093c6B3b8Bfd29933bb8d5C031caBC],[])`
 </br>
 </br>
 
@@ -74,15 +72,13 @@ We require adding a `govOnly` function called `assignSelfDelegate` that takes an
 
 To implement this new logic, the following needs to be included in the governance proposal:
 - Action: Update token logic
- - Target: `yamV3`
-   - function: `_setImplementation(address,bool,bytes)`
-   - data: `[address(new_impl),false,""]`
-</br>
-</br>
+  - Target: `yamV3`
+    - function: `_setImplementation(address,bool,bytes)`
+    - data: `[address(new_impl),false,""]`
 - Action: Have the ETH/YAM pool self delegate
- - Target: `yamV3`
-   - function: `delegateToImplementation(bytes)`
-   - data: `abi.encodeWithSignature("assignSelfDelegate(address)", address(0xe2aAb7232a9545F29112f9e6441661fD6eEB0a5d))`  
+  - Target: `yamV3`
+    - function: `delegateToImplementation(bytes)`
+    - data: `abi.encodeWithSignature("assignSelfDelegate(address)", address(0xe2aAb7232a9545F29112f9e6441661fD6eEB0a5d))`  
  </br>
  </br>
 
@@ -101,21 +97,17 @@ i.e., There is a scaling factor of 5. Bob has 500 YAMs in his wallet and has sta
 There are a few places in the protocol that need to reference the new incentivizer. Here are the functions that governance needs to call.
 
 - Action: Turn off old incentivizer
- - Target: `incentivizer`
-   - function: `setBreaker(bool)`
-   - data: `true`
-</br>
-</br>
+  - Target: `incentivizer`
+    - function: `setBreaker(bool)`
+    - data: `true`
 - Action: Set new incentivzer
- - Target: `yamV3`
-   - function: `_setIncentivizer(address)`
-   - data: `address(new_incentivizer)`
-</br>
-</br>
+  - Target: `yamV3`
+    - function: `_setIncentivizer(address)`
+    - data: `address(new_incentivizer)`
 - Action: Initialize Incentivizer
- - Target: `new_incentivizer`
-   - function: `notifyRewardAmount(uint256)`
-   - data: `0` (initial reward is hard coded)
+  - Target: `new_incentivizer`
+    - function: `notifyRewardAmount(uint256)`
+    - data: `0` (initial reward is hard coded)
 </br>
 </br>
 
@@ -123,14 +115,12 @@ There are a few places in the protocol that need to reference the new incentiviz
 To enable LPs to actually vote, we must update the `admin` over the `timelock`. The `admin` is generally of the form of a `GovernorAlpha` contract. For this update, we have created a `DualGovernorAlpha` that accepts multiple forms of voting power. It works in tandem with the new `incentivizer` to perform the above voting power calculation. It includes the ability to add and remove
 
 - Action: Assign new governor as admin
- - Target: `timelock`
-   - function: `setPendingAdmin(address)`
-   - data: `address(new_dual_gov_alpha)`
-</br>
-</br>
+  - Target: `timelock`
+    - function: `setPendingAdmin(address)`
+    - data: `address(new_dual_gov_alpha)`
 - Action: Add YAM/ETH Incentivizer as a voting power incentivizer
- - Target: `new_dual_gov_alpha`
-   - function: `addIncentivizer(address)`
-   - data: `address(new_incentivizer)`
+  - Target: `new_dual_gov_alpha`
+    - function: `addIncentivizer(address)`
+    - data: `address(new_incentivizer)`
 </br>
 </br>
