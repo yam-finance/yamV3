@@ -635,7 +635,7 @@ contract LPTokenWrapper is Ownable {
 
     /// @notice The number of checkpoints for total supply
     mapping (uint32 => Checkpoint) public totalSupplyCheckpoints;
-    
+
     uint32 public numSupplyCheckpoints;
 
     function totalSupply() public view returns (uint256) {
@@ -665,7 +665,7 @@ contract LPTokenWrapper is Ownable {
         }
         uni_lp.safeTransfer(msg.sender, amount);
     }
-    
+
     /**
      * @notice Gets the current votes balance for `account`
      * @param account The address to get votes balance
@@ -779,9 +779,9 @@ contract LPTokenWrapper is Ownable {
             totalSupplyCheckpoints[numSupplyCheckpoints] = Checkpoint(blockNumber, _totalSupply);
             numSupplyCheckpoints += 1;
         }
-        
+
     }
-    
+
     function getPriorSupply(uint256 blockNumber)
         public
         view
@@ -901,13 +901,13 @@ contract YAMIncentivizerWithVoting is LPTokenWrapper, IRewardDistributionRecipie
     }
 
     // stake visibility is public as overriding LPTokenWrapper's stake() function
-    function stake(uint256 amount) public updateReward(msg.sender) checkhalve checkStart {
+    function stake(uint256 amount) public updateReward(msg.sender) checkhalve {
         require(amount > 0, "Cannot stake 0");
         super.stake(amount);
         emit Staked(msg.sender, amount);
     }
 
-    function withdraw(uint256 amount) public updateReward(msg.sender) checkStart {
+    function withdraw(uint256 amount) public updateReward(msg.sender) {
         require(amount > 0, "Cannot withdraw 0");
         super.withdraw(amount);
         emit Withdrawn(msg.sender, amount);
@@ -918,7 +918,7 @@ contract YAMIncentivizerWithVoting is LPTokenWrapper, IRewardDistributionRecipie
         getReward();
     }
 
-    function getReward() public updateReward(msg.sender) checkhalve checkStart {
+    function getReward() public updateReward(msg.sender) checkhalve {
         uint256 reward = earned(msg.sender);
         if (reward > 0) {
             rewards[msg.sender] = 0;
@@ -944,12 +944,6 @@ contract YAMIncentivizerWithVoting is LPTokenWrapper, IRewardDistributionRecipie
         }
         _;
     }
-
-    modifier checkStart(){
-        require(block.timestamp >= starttime,"not start");
-        _;
-    }
-
 
     function notifyRewardAmount(uint256 reward)
         external

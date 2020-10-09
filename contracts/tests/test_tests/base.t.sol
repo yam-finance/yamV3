@@ -162,12 +162,12 @@ contract YAMv3Test is DSTest {
         curr_gov.castVote(id, true);
     }
 
-    function timelock_accept_gov() public {
-        //
-        GovernorAlpha curr_gov = GovernorAlpha(timelock.admin());
-        yamhelper.getQuorum(yamV3, me);
+    function timelock_accept_gov(address accepting_gov) public {
+        if (yamV3.getCurrentVotes(me) < 200000 * 10**24) {
+            yamhelper.getQuorum(yamV3, me);
+        }
         address[] memory targets = new address[](1);
-        targets[0] = address(yamV3); // rebaser
+        targets[0] = accepting_gov;
         uint256[] memory values = new uint256[](1);
         values[0] = 0; // dont send eth
         string[] memory signatures = new string[](1);
@@ -175,27 +175,13 @@ contract YAMv3Test is DSTest {
         bytes[] memory calldatas = new bytes[](1);
         calldatas[0] = "";
         string memory description = "timelock accept gov";
-        curr_gov.propose(
+        roll_prop(
           targets,
           values,
           signatures,
           calldatas,
           description
         );
-
-        uint256 id = curr_gov.latestProposalIds(me);
-
-        vote_pos_latest();
-        hevm.roll(block.number +  12345);
-
-        curr_gov.queue(id);
-
-        GovernorAlpha.ProposalState state = curr_gov.state(id);
-        assertTrue(state == GovernorAlpha.ProposalState.Queued);
-
-        hevm.warp(now + timelock.delay());
-
-        curr_gov.execute(id);
     }
 
     function roll_prop(
@@ -241,36 +227,36 @@ contract YAMv3Test is DSTest {
     )
         public
     {
-      UniswapPair secondary_pair = UniswapPair(secondary_uni_pair);
-      UniswapPair pair = UniswapPair(main_uni_pair);
-      (uint256 token0Reserves2, uint256 token1Reserves2, ) = secondary_pair.getReserves();
+        UniswapPair secondary_pair = UniswapPair(secondary_uni_pair);
+        UniswapPair pair = UniswapPair(main_uni_pair);
+        (uint256 token0Reserves2, uint256 token1Reserves2, ) = secondary_pair.getReserves();
 
-      address token02 = secondary_pair.token0();
-      address token12 = secondary_pair.token1();
+        address token02 = secondary_pair.token0();
+        address token12 = secondary_pair.token1();
 
-      if (token02 == pair.token0() || token02 == pair.token1()) {
-          // get quote in terms of token02
-          uint256 quote = uniRouter.quote(
-              10**ExpandedERC20(token02).decimals(),
-              token0Reserves2,
-              token1Reserves2
-          );
-          // get inverse
-          quote = quote_price.mul(10**ExpandedERC20(token12).decimals()).div(quote);
-          set_uni_price(main_uni_pair, who, quote);
-      } else if (token12 == pair.token0() || token12 == pair.token1()) {
-          // get quote in terms of token12
-          uint256 quote = uniRouter.quote(
-              10**ExpandedERC20(token12).decimals(),
-              token1Reserves2,
-              token0Reserves2
-          );
-          // get inverse
-          quote = quote_price.mul(10**ExpandedERC20(token02).decimals()).div(quote);
-          set_uni_price(main_uni_pair, who, quote);
-      } else {
-        require( false, "!pair_two_hop");
-      }
+        if (token02 == pair.token0() || token02 == pair.token1()) {
+            // get quote in terms of token02
+            uint256 quote = uniRouter.quote(
+                10**ExpandedERC20(token02).decimals(),
+                token0Reserves2,
+                token1Reserves2
+            );
+            // get inverse
+            quote = quote_price.mul(10**ExpandedERC20(token12).decimals()).div(quote);
+            set_uni_price(main_uni_pair, who, quote);
+        } else if (token12 == pair.token0() || token12 == pair.token1()) {
+            // get quote in terms of token12
+            uint256 quote = uniRouter.quote(
+                10**ExpandedERC20(token12).decimals(),
+                token1Reserves2,
+                token0Reserves2
+            );
+            // get inverse
+            quote = quote_price.mul(10**ExpandedERC20(token02).decimals()).div(quote);
+            set_uni_price(main_uni_pair, who, quote);
+        } else {
+            require( false, "!pair_two_hop");
+        }
     }
 
     // set the current uniswap price of a pair
@@ -293,12 +279,12 @@ contract YAMv3Test is DSTest {
             require( false, "!pair" );
         }
 
-        assertEq(quote, quote_price);
+        /* assertEq(quote, quote_price); */
         uint256 offPerc;
         if (quote > quote_price) {
             // price too high, increase reserves by off %
             offPerc = quote.sub(quote_price).mul(BASE).div(quote_price);
-            assertEq(offPerc, 440);
+            /* assertEq(offPerc, 440); */
             uint256 new_bal = IERC20(who).balanceOf(uni_pair).mul(BASE.add(offPerc)).div(BASE);
             assertEq(new_bal, IERC20(who).balanceOf(uni_pair));
             yamhelper.write_balanceOf(who, uni_pair, new_bal);
@@ -306,11 +292,80 @@ contract YAMv3Test is DSTest {
         } else {
             // price too low, decrease reserves by off %
             offPerc = quote_price.sub(quote).mul(BASE).div(quote_price);
-            assertEq(offPerc, 441);
+            /* assertEq(offPerc, 441); */
             uint256 new_bal = IERC20(who).balanceOf(uni_pair).mul(BASE.sub(offPerc)).div(BASE);
             assertEq(new_bal, IERC20(who).balanceOf(uni_pair));
             yamhelper.write_balanceOf(who, uni_pair, new_bal);
             pair.sync();
         }
+    }
+
+    function atomicGovCore(address has_gov, string[] memory sigs, bytes32[][] memory ins) public {
+        // may or may not be YAMDelegator
+        address prevGov = YAMDelegator(address(uint160(has_gov))).gov();
+
+        yamhelper.becomeGovernor(has_gov, address(this));
+        YAMDelegator(address(uint160(has_gov)))._acceptGov();
+
+        for (uint256 i = 0; i < sigs.length; i++) {
+            bytes4 fsig = bytes4(keccak256(bytes(sigs[i])));
+            bytes memory dat = yamhelper.flatten(ins[i]);
+            bytes memory cald = abi.encodePacked(fsig, dat);
+            (bool success, bytes memory rdat) = has_gov.call(cald);
+        }
+
+        yamhelper.becomeGovernor(has_gov, prevGov);
+        timelock_accept_gov(has_gov);
+    }
+
+    function atomicGov(address has_gov, string memory sig, address acct) public {
+        // may or may not be YAMDelegator
+        bytes32[][] memory ins = new bytes32[][](1);
+        assertEq(uint(1), 0);
+        ins[0] = new bytes32[](1);
+        ins[0][0] = bytes32(uint256(acct));
+        string[] memory sigs = new string[](1);
+        sigs[0] = sig;
+        atomicGovCore(has_gov, sigs, ins);
+    }
+
+    function atomicGov(address has_gov, string memory sig, uint val) public {
+        // may or may not be YAMDelegator
+        bytes32[][] memory ins = new bytes32[][](1);
+        assertEq(uint(1), 0);
+        ins[0] = new bytes32[](1);
+        ins[0][0] = bytes32(val);
+        string[] memory sigs = new string[](1);
+        sigs[0] = sig;
+        atomicGovCore(has_gov, sigs, ins);
+    }
+
+    function ff_rebase() public {
+        YAMRebaser reb = YAMRebaser(yamV3.rebaser());
+        uint256 offset = reb.rebaseWindowOffsetSec();
+        uint256 interval = reb.minRebaseTimeIntervalSec();
+        uint256 waitTime;
+        if (now % interval > offset) {
+          waitTime = (interval - (now % interval)) + offset;
+        } else {
+          waitTime = offset - (now % interval);
+        }
+        hevm.warp(now + waitTime + 1);
+    }
+
+    function increase_liquidity(address uni_pair, uint256 scale) public {
+        UniswapPair pair = UniswapPair(uni_pair);
+        (uint256 token0Reserves, uint256 token1Reserves, ) = pair.getReserves();
+        if (pair.token0() == WETH) {
+            yamhelper.write_map(pair.token0(), "balanceOf(address)", uni_pair, token0Reserves * scale);
+        } else {
+            yamhelper.write_balanceOf(pair.token0(), uni_pair, token0Reserves * scale);
+        }
+        if (pair.token1() == WETH) {
+            yamhelper.write_map(pair.token1(), "balanceOf(address)", uni_pair, token1Reserves * scale);
+        } else {
+            yamhelper.write_balanceOf(pair.token1(), uni_pair, token1Reserves * scale);
+        }
+        pair.sync();
     }
 }

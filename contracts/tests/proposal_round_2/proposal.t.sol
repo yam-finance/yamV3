@@ -7,14 +7,17 @@ import "../test_tests/base.t.sol";
 import { YAMIncentivizerWithVoting } from "./YAMIncentivesWithVoting.sol";
 import { DualGovernorAlpha } from "./YAMGovernorAlphaWithLps.sol";
 import { YAMDelegate2 } from "./YAMDelegate.sol";
+import { YAMRebaser2 } from "./YAMRebaserEth.sol";
 
-contract Gov3 is YAMv3Test {
+contract Prop2 is YAMv3Test {
 
 
     YAMIncentivizerWithVoting voting_inc;
     DualGovernorAlpha gov3;
     YAMDelegate2 new_impl;
-    address eth_yam_lp = address(0xe2aAb7232a9545F29112f9e6441661fD6eEB0a5d);
+    address public constant eth_yam_lp = address(0xe2aAb7232a9545F29112f9e6441661fD6eEB0a5d);
+    YAMRebaser2 eth_rebaser;
+    address public constant eth_usdc_lp = address(0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc);
     function setUp() public {
         setUpCore();
         voting_inc = new YAMIncentivizerWithVoting();
@@ -22,6 +25,17 @@ contract Gov3 is YAMv3Test {
         incentivizers[0] = address(voting_inc);
         gov3 = new DualGovernorAlpha(address(timelock), address(yamV3), incentivizers);
         new_impl = new YAMDelegate2();
+
+        // -- fully setup rebaser
+        eth_rebaser = new YAMRebaser2(
+          address(yamV3), // yam
+          WETH, // reserve token
+          uniFact, // uniswap factory
+          address(reserves), // reserves contract
+          gitcoinGrants, // gitcoin grant multisig
+          10**16 // percentage to gitcoin grants
+        );
+        setup_rebaser();
     }
 
     //
@@ -55,7 +69,7 @@ contract Gov3 is YAMv3Test {
         incentivizer.setBreaker(true);
 
         // -- get yam governance
-        yamhelper.becomeGovernor(yamV3, me);
+        yamhelper.becomeGovernor(address(yamV3), me);
         yamV3._acceptGov();
 
         // -- update implementation
@@ -108,7 +122,7 @@ contract Gov3 is YAMv3Test {
         incentivizer.setBreaker(true);
 
         // -- get yam governance
-        yamhelper.becomeGovernor(yamV3, me);
+        yamhelper.becomeGovernor(address(yamV3), me);
         yamV3._acceptGov();
 
         // -- update implementation
@@ -147,8 +161,8 @@ contract Gov3 is YAMv3Test {
         // -- new gov
         helper.write_flat(address(timelock), "admin()", address(gov3));
         assertEq(timelock.admin(), address(gov3));
-        yamhelper.becomeGovernor(yamV3, address(timelock));
-        timelock_accept_gov();
+        yamhelper.becomeGovernor(address(yamV3), address(timelock));
+        timelock_accept_gov(address(yamV3));
         assertEq(yamV3.gov(), address(timelock));
 
         // -- at this point, the new incentivizer is setup
@@ -175,5 +189,63 @@ contract Gov3 is YAMv3Test {
 
         address[] memory pairs = rebaser.getUniSyncPairs();
         assertEq(pairs[2], unis[0]);
+    }
+
+
+    function test_EthRebaser() public {
+        // -- force verbose output
+        assertTrue(false);
+
+        // increase liquidity by 10x
+        increase_liquidity(eth_yam_lp, 10);
+
+        // -- initialize twap
+        set_two_hop_uni_price(eth_yam_lp, eth_usdc_lp, address(yamV3), 120 * 10**16);
+        eth_rebaser.init_twap();
+        yamhelper.ff(12 hours);
+        assertEq(eth_rebaser.getCurrentTWAP(), 0);
+        eth_rebaser.activate_rebasing();
+
+        // -- fast forward to rebase
+        ff_rebase();
+
+        // -- call rebase x4
+        eth_rebaser.rebase();
+        yamhelper.ff(6 hours);
+        assertEq(eth_rebaser.getCurrentTWAP(), 1);
+
+        ff_rebase();
+        eth_rebaser.rebase();
+        yamhelper.ff(6 hours);
+        assertEq(eth_rebaser.getCurrentTWAP(), 2);
+
+        ff_rebase();
+        eth_rebaser.rebase();
+
+        
+        set_two_hop_uni_price(eth_yam_lp, eth_usdc_lp, address(yamV3), 90 * 10**16);
+        yamhelper.ff(6 hours);
+        assertEq(eth_rebaser.getCurrentTWAP(), 3);
+
+
+
+        ff_rebase();
+        eth_rebaser.rebase();
+        yamhelper.ff(6 hours);
+        assertEq(eth_rebaser.getCurrentTWAP(), 4);
+    }
+
+    function setup_rebaser() public {
+        // -- add sync pairs
+        address[] memory uni_like = new address[](2);
+        address[] memory bals = new address[](0);
+
+        uni_like[0] = address(0x95b54C8Da12BB23F7A5F6E26C38D04aCC6F81820); // sushi eth/yam
+        uni_like[1] = address(0xb93Cc05334093c6B3b8Bfd29933bb8d5C031caBC); // yam_yusd
+        eth_rebaser.addSyncPairs(uni_like, bals);
+
+        // -- update reserves & yam rebaser
+        atomicGov(address(reserves), "_setRebaser(address)", address(eth_rebaser));
+        atomicGov(address(yamV3), "_setRebaser(address)", address(eth_rebaser));
     }
 }

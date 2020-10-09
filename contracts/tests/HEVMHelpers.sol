@@ -14,6 +14,7 @@ interface Hevm {
 contract HEVMHelpers is DSTest {
 
     event Debug(uint, bytes32);
+    event SlotFound(address who, string sig, uint slot);
     event Logger(uint, bytes);
 
     bytes20 constant CHEAT_CODE =
@@ -77,7 +78,7 @@ contract HEVMHelpers is DSTest {
                 slots[who][fsig] = i;
                 finds[who][fsig] = true;
                 hevm.store(who, slot, prev);
-                emit Debug(i, "done");
+                emit SlotFound(who, sig, i);
                 break;
             }
             // reset storage
@@ -319,7 +320,7 @@ contract HEVMHelpers is DSTest {
         return out;
     }
 
-    function flatten(bytes32[] memory b) pure internal returns (bytes memory)
+    function flatten(bytes32[] memory b) public pure returns (bytes memory)
     {
         bytes memory result = new bytes(b.length * 32);
         for (uint256 i = 0; i < b.length; i++) {
@@ -410,8 +411,17 @@ contract YAMHelper is HEVMHelpers {
         bing();
     }
 
-    function becomeGovernor(YAMDelegator yamV3, address account) public {
-        write_flat(address(yamV3), "pendingGov()", account);
+    function becomeGovernor(address who, address account) public {
+        write_flat(who, "pendingGov()", account);
+    }
+
+    // may or may not work depending on storage layout
+    function becomeGovernorDirect(address who, address account) public {
+        write_flat(who, "gov()", account);
+    }
+
+    function becomeAdmin(address who, address account) public {
+        write_flat(who, "admin()", account);
     }
 
     function manualCheckpoint(YAMDelegator yamV3, address account, uint256 checkpoint, uint256 fromBlock, uint256 votes) public {

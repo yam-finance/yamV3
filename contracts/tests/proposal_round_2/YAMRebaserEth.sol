@@ -44,6 +44,9 @@ contract YAMRebaser2 {
     /// @notice an event emitted when deviationThreshold is changed
     event NewDeviationThreshold(uint256 oldDeviationThreshold, uint256 newDeviationThreshold);
 
+    /// @notice an event emitted during rebase denoting how much is minted
+    event MintAmount(uint256 mintAmount);
+
     /**
      * @notice Sets the treasury mint percentage of rebase
      */
@@ -175,8 +178,6 @@ contract YAMRebaser2 {
     uint256 public constant MAX_SLIPPAGE_PARAM = 1180339 * 10**11; // max ~20% market impact
 
     uint256 public constant MAX_MINT_PERC_PARAM = 25 * 10**16; // max 25% of rebase can go to treasury
-
-    uint256 public constant MIN_TIME_FIRST_REBASE = 1600718400; // Monday, September 21, 2020 8:00:00 PM
 
     constructor(
         address yamAddress_,
@@ -406,8 +407,6 @@ contract YAMRebaser2 {
         public
     {
         require(timeOfTWAPInit > 0, "twap wasnt intitiated, call init_twap()");
-        // ensure rebase activation is allowed
-        require(now >= MIN_TIME_FIRST_REBASE, "!first_rebase");
         // cannot enable prior to end of rebaseDelay
         require(now >= timeOfTWAPInit + rebaseDelay, "!end_delay");
 
@@ -425,7 +424,7 @@ contract YAMRebaser2 {
         public
     {
         // EOA only or gov
-        require(msg.sender == tx.origin);
+        require(msg.sender == tx.origin, "!EOA");
         // ensure rebasing at correct time
         _inRebaseWindow();
 
@@ -471,6 +470,7 @@ contract YAMRebaser2 {
         yam.rebase(epoch, indexDelta, positive);
 
         // perform actions after rebase
+        emit MintAmount(mintAmount);
         afterRebase(mintAmount, offPegPerc);
     }
 
@@ -512,23 +512,43 @@ contract YAMRebaser2 {
         // transfer reserve token to reserves
         if (isToken0) {
             if (public_goods != address(0) && public_goods_perc > 0) {
-              uint256 amount_to_public_goods = amount1.mul(public_goods_perc).div(BASE);
-              SafeERC20.safeTransfer(IERC20(reserveToken), reservesContract, amount1.sub(amount_to_public_goods));
-              SafeERC20.safeTransfer(IERC20(reserveToken), public_goods, amount_to_public_goods);
-              emit TreasuryIncreased(amount1.sub(amount_to_public_goods), uniVars.yamsToUni, uniVars.amountFromReserves, uniVars.mintToReserves);
+                uint256 amount_to_public_goods = amount1.mul(public_goods_perc).div(BASE);
+                SafeERC20.safeTransfer(IERC20(reserveToken), reservesContract, amount1.sub(amount_to_public_goods));
+                SafeERC20.safeTransfer(IERC20(reserveToken), public_goods, amount_to_public_goods);
+                emit TreasuryIncreased(
+                    amount1.sub(amount_to_public_goods),
+                    uniVars.yamsToUni,
+                    uniVars.amountFromReserves,
+                    uniVars.mintToReserves
+                );
             } else {
-              SafeERC20.safeTransfer(IERC20(reserveToken), reservesContract, amount1);
-              emit TreasuryIncreased(amount1, uniVars.yamsToUni, uniVars.amountFromReserves, uniVars.mintToReserves);
+                SafeERC20.safeTransfer(IERC20(reserveToken), reservesContract, amount1);
+                emit TreasuryIncreased(
+                    amount1,
+                    uniVars.yamsToUni,
+                    uniVars.amountFromReserves,
+                    uniVars.mintToReserves
+                );
             }
         } else {
           if (public_goods != address(0) && public_goods_perc > 0) {
-            uint256 amount_to_public_goods = amount0.mul(public_goods_perc).div(BASE);
-            SafeERC20.safeTransfer(IERC20(reserveToken), reservesContract, amount0.sub(amount_to_public_goods));
-            SafeERC20.safeTransfer(IERC20(reserveToken), public_goods, amount_to_public_goods);
-            emit TreasuryIncreased(amount0.sub(amount_to_public_goods), uniVars.yamsToUni, uniVars.amountFromReserves, uniVars.mintToReserves);
+              uint256 amount_to_public_goods = amount0.mul(public_goods_perc).div(BASE);
+              SafeERC20.safeTransfer(IERC20(reserveToken), reservesContract, amount0.sub(amount_to_public_goods));
+              SafeERC20.safeTransfer(IERC20(reserveToken), public_goods, amount_to_public_goods);
+              emit TreasuryIncreased(
+                  amount0.sub(amount_to_public_goods),
+                  uniVars.yamsToUni,
+                  uniVars.amountFromReserves,
+                  uniVars.mintToReserves
+              );
           } else {
-            SafeERC20.safeTransfer(IERC20(reserveToken), reservesContract, amount0);
-            emit TreasuryIncreased(amount0, uniVars.yamsToUni, uniVars.amountFromReserves, uniVars.mintToReserves);
+              SafeERC20.safeTransfer(IERC20(reserveToken), reservesContract, amount0);
+              emit TreasuryIncreased(
+                  amount0,
+                  uniVars.yamsToUni,
+                  uniVars.amountFromReserves,
+                  uniVars.mintToReserves
+              );
           }
         }
     }
@@ -605,8 +625,7 @@ contract YAMRebaser2 {
                     uint256 buyTokens = getAmountOut(tokens_to_max_slippage, token1Reserves, token0Reserves);
 
                     // swap up to slippage limit, taking entire yam reserves, and minting part of total
-                    uniVars.mintToReserves = mintAmount.sub( (tokens_to_max_slippage - excess));
-                    // swap up to slippage limit, taking entire yam reserves, and minting part of total
+                    uniVars.mintToReserves = mintAmount.sub( (tokens_to_max_slippage - excess) );
                     pair.swap(buyTokens, 0, address(this), abi.encode(uniVars));
                 } else {
                     // uniswap cant handle all of excess
