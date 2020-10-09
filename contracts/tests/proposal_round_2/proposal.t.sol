@@ -37,17 +37,28 @@ contract Prop2 is YAMv3Test {
           gitcoinGrants, // gitcoin grant multisig
           10**16 // percentage to gitcoin grants
         );
-        /* setup_rebaser(); */
+
+        address[] memory uni_like = new address[](2);
+        address[] memory bals = new address[](0);
+
+        uni_like[0] = address(0x95b54C8Da12BB23F7A5F6E26C38D04aCC6F81820); // sushi eth/yam
+        uni_like[1] = address(0xb93Cc05334093c6B3b8Bfd29933bb8d5C031caBC); // yam_yusd
+        eth_rebaser.addSyncPairs(uni_like, bals);
+
+        eth_rebaser._setPendingGov(address(timelock));
     }
 
     //
     // TESTS
     //
     function test_FullProp() public {
-        address[] memory targets = new address[](8);
-        uint256[] memory values = new uint256[](8);
-        string[] memory signatures = new string[](8);
-        bytes[] memory calldatas = new bytes[](8);
+        // -- force verbose
+        /* assertTrue(false); */
+
+        address[] memory targets = new address[](9);
+        uint256[] memory values = new uint256[](9);
+        string[] memory signatures = new string[](9);
+        bytes[] memory calldatas = new bytes[](9);
         string memory description = "Proposal round 2";
 
         // -- update rebaser
@@ -89,6 +100,9 @@ contract Prop2 is YAMv3Test {
         targets[7] = address(timelock);
         signatures[7] = "setPendingAdmin(address)";
         calldatas[7] = abi.encode(address(gov3));
+
+        targets[8] = address(eth_rebaser);
+        signatures[8] = "_acceptGov()";
 
         yamhelper.getQuorum(yamV3, me);
 
