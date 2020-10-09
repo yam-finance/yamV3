@@ -621,6 +621,9 @@ contract LPTokenWrapper is Ownable {
 
     mapping(address => uint256) private _balances;
 
+
+    mapping(address => address) public delegates;
+
     /// @notice A checkpoint for marking number of lp tokens staked from a given block
     struct Checkpoint {
         uint32 fromBlock;
@@ -646,13 +649,52 @@ contract LPTokenWrapper is Ownable {
         return _balances[account];
     }
 
+    function delegate(address delegatee) public {
+        _delegate(msg.sender, delegatee);
+    }
+
+    function _delegate(address delegator, address delegatee)
+        internal
+    {
+        address currentDelegate = delegates[msg.sender];
+        uint256 delegatorBalance = _balances[msg.sender];
+        delegates[msg.sender] = delegatee;
+
+        _moveDelegates(currentDelegate, delegatee, delegatorBalance);
+    }
+
+    function _moveDelegates(address srcRep, address dstRep, uint256 amount) internal {
+        if (srcRep != dstRep && amount > 0) {
+            if (srcRep != address(0)) {
+                // decrease old representative
+                uint32 srcRepNum = numCheckpoints[srcRep];
+                uint256 srcRepOld = srcRepNum > 0 ? checkpoints[srcRep][srcRepNum - 1].lpStake : 0;
+                uint256 srcRepNew = srcRepOld.sub(amount);
+                _writeCheckpoint(srcRep, srcRepNum, srcRepNew);
+            }
+
+            if (dstRep != address(0)) {
+                // increase new representative
+                uint32 dstRepNum = numCheckpoints[dstRep];
+                uint256 dstRepOld = dstRepNum > 0 ? checkpoints[dstRep][dstRepNum - 1].lpStake : 0;
+                uint256 dstRepNew = dstRepOld.add(amount);
+                _writeCheckpoint(dstRep, dstRepNum, dstRepNew);
+            }
+        }
+    }
+
+
     function stake(uint256 amount) public {
         _totalSupply = _totalSupply.add(amount);
         uint256 new_bal = _balances[msg.sender].add(amount);
         _balances[msg.sender] = new_bal;
-        if (amount > 0) {
-          _writeCheckpoint(msg.sender, numCheckpoints[msg.sender], new_bal);
+        address delegate = delegates[msg.sender];
+        if (delegate == address(0)) {
+          delegates[msg.sender] = msg.sender;
+          delegate = msg.sender;
         }
+        _moveDelegates(address(0), delegate, amount);
+        _writeSupplyCheckpoint();
         uni_lp.safeTransferFrom(msg.sender, address(this), amount);
     }
 
@@ -660,9 +702,8 @@ contract LPTokenWrapper is Ownable {
         _totalSupply = _totalSupply.sub(amount);
         uint256 new_bal = _balances[msg.sender].sub(amount);
         _balances[msg.sender] = new_bal;
-        if (amount > 0) {
-          _writeCheckpoint(msg.sender, numCheckpoints[msg.sender], new_bal);
-        }
+        _moveDelegates(delegates[msg.sender], address(0), amount);
+        _writeSupplyCheckpoint();
         uni_lp.safeTransfer(msg.sender, amount);
     }
 
@@ -771,6 +812,12 @@ contract LPTokenWrapper is Ownable {
             checkpoints[delegatee][nCheckpoints] = Checkpoint(blockNumber, newStake);
             numCheckpoints[delegatee] = nCheckpoints + 1;
         }
+    }
+
+    function _writeSupplyCheckpoint()
+        internal
+    {
+        uint32 blockNumber = safe32(block.number, "Incentivizer::_writeSupplyCheckpoint: block number exceeds 32 bits");
 
         // overwrite totalSupplyCheckpoint for block, increment counter if needed
         if (numSupplyCheckpoints > 0 && totalSupplyCheckpoints[numSupplyCheckpoints - 1].fromBlock == blockNumber) {
@@ -779,7 +826,6 @@ contract LPTokenWrapper is Ownable {
             totalSupplyCheckpoints[numSupplyCheckpoints] = Checkpoint(blockNumber, _totalSupply);
             numSupplyCheckpoints += 1;
         }
-
     }
 
     function getPriorSupply(uint256 blockNumber)
