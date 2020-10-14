@@ -38,9 +38,9 @@ contract User {
 
 
 
-contract YAMv3Test is DSTest {
+contract YAMv3GovTest is DSTest {
     event Logger(bytes);
-    
+
     using SafeMath for uint256;
 
     Hevm hevm;

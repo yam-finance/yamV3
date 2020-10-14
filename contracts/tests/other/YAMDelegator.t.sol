@@ -70,7 +70,7 @@ contract User {
     }
 }
 
-contract YAMv3Test is DSTest {
+contract YAMv3DelegatorTest is DSTest {
     using SafeMath for uint256;
 
     Hevm hevm;

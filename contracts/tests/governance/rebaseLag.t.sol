@@ -43,7 +43,7 @@ contract User {
 }
 
 
-contract YAMv3Test is DSTest {
+contract YAMv3RebaseLagTest is DSTest {
     event Logger(bytes);
 
     event Actions(address[], uint[], string[], bytes[]);

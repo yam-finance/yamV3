@@ -34,7 +34,7 @@ interface YYCRV {
 }
 
 
-contract YAMv3Test is DSTest {
+contract YAMv3Prop1Test is DSTest {
     event Logger(bytes);
 
     using SafeMath for uint256;
