@@ -2,6 +2,9 @@ node_modules
 build
 .env
 out
+*/out/dapp.sol.json
+scripts/out/dapp.sol.json
+out2
 makepad_*
 
 #Added by cargo
