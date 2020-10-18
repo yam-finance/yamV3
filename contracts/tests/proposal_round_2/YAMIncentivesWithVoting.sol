@@ -736,11 +736,23 @@ contract LPTokenWrapper is Ownable {
         // get incentivizer's uniswap pool yam votes
         uint256 poolVotes = YAM(address(yam)).getPriorVotes(address(uni_lp), blockNumber);
 
+        if (poolVotes == 0) {
+            return 0;
+        }
+
         // get prior stake
         uint256 priorStake = _getPriorLPStake(account, blockNumber);
 
+        if (priorStake == 0) {
+            return 0;
+        }
+
         // get prior LP stake
         uint256 lpTotalSupply = getPriorSupply(blockNumber);
+
+        if (lpTotalSupply == 0) {
+            return 0;
+        }
 
         // get percent ownership of staked LPs
         uint256 percentOfVote = priorStake.mul(BASE).div(lpTotalSupply);
