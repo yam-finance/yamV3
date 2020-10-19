@@ -774,15 +774,19 @@ contract YAMRebaser2 {
            // eat loss of precision
            // effectively: (x / 2**112) * 1e18
            YAMETHprice = (priceAverageYAMETH >> 112) * BASE;
+        } else {
+            // cant overflow
+            // effectively: (x * 1e18 / 2**112)
+            YAMETHprice = (priceAverageYAMETH * BASE) >> 112;
         }
-        // cant overflow
-        // effectively: (x * 1e18 / 2**112)
-        YAMETHprice = (priceAverageYAMETH * BASE) >> 112;
+
 
         if (priceAverageETHUSDC > uint192(-1)) {
-           ETHprice = (priceAverageETHUSDC >> 112) * BASE;
+            ETHprice = (priceAverageETHUSDC >> 112) * BASE;
+        } else {
+            ETHprice = (priceAverageETHUSDC * BASE) >> 112;
         }
-        ETHprice = (priceAverageETHUSDC * BASE) >> 112;
+
 
         return YAMETHprice.mul(ETHprice).div(10**6);
     }
@@ -817,15 +821,19 @@ contract YAMRebaser2 {
           // eat loss of precision
           // effectively: (x / 2**112) * 1e18
           YAMETHprice = (priceAverageYAMETH >> 112) * BASE;
+       } else {
+         // cant overflow
+         // effectively: (x * 1e18 / 2**112)
+         YAMETHprice = (priceAverageYAMETH * BASE) >> 112;
        }
-       // cant overflow
-       // effectively: (x * 1e18 / 2**112)
-       YAMETHprice = (priceAverageYAMETH * BASE) >> 112;
+
 
        if (priceAverageETHUSDC > uint192(-1)) {
           ETHprice = (priceAverageETHUSDC >> 112) * BASE;
+       } else {
+          ETHprice = (priceAverageETHUSDC * BASE) >> 112;
        }
-       ETHprice = (priceAverageETHUSDC * BASE) >> 112;
+
 
        return YAMETHprice.mul(ETHprice).div(10**6);
     }
