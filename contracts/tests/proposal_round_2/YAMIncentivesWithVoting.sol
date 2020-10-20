@@ -688,12 +688,12 @@ contract LPTokenWrapper is Ownable {
         _totalSupply = _totalSupply.add(amount);
         uint256 new_bal = _balances[msg.sender].add(amount);
         _balances[msg.sender] = new_bal;
-        address delegatee = delegates[msg.sender];
-        if (delegatee == address(0)) {
+        address delegate = delegates[msg.sender];
+        if (delegate == address(0)) {
           delegates[msg.sender] = msg.sender;
-          delegatee = msg.sender;
+          delegate = msg.sender;
         }
-        _moveDelegates(address(0), delegatee, amount);
+        _moveDelegates(address(0), delegate, amount);
         _writeSupplyCheckpoint();
         uni_lp.safeTransferFrom(msg.sender, address(this), amount);
     }
@@ -990,7 +990,7 @@ contract YAMIncentivizerWithVoting is LPTokenWrapper, IRewardDistributionRecipie
     modifier checkhalve() {
         if (breaker) {
           // do nothing
-        } else if (block.timestamp >= periodFinish) {
+        } else if (block.timestamp >= periodFinish && initialized) {
             initreward = initreward.mul(90).div(100);
             uint256 scalingFactor = YAM(address(yam)).yamsScalingFactor();
             uint256 newRewards = initreward.mul(scalingFactor).div(10**18);
