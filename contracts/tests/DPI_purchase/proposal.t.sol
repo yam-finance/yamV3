@@ -131,6 +131,74 @@ contract OTCProp is YAMv3Test {
 
     }
 
+    function test_double_hop_twice() public {
+        setup_reserves();
+
+        uint256 saleAmount = 215518*10**18;
+
+        uint256 purchaseAmount = 3400 * 10**18;
+
+        otc.setup_sale(
+            address(grapefruit),
+            yyCRV,
+            DPI,
+            saleAmount,
+            2 * 60 * 60, // 2 hours
+            10**16, // 1%
+            pairFor(yyCRV, WETH),
+            pairFor(WETH, DPI), // if two hop
+            address(r2)
+        );
+
+        yamhelper.ff(60*60*2);
+
+        otc.update_twap();
+
+        otc.bounds();
+        otc.quote(purchaseAmount, saleAmount);
+
+        yamhelper.write_map(DPI, "balanceOf(address)", address(grapefruit), purchaseAmount);
+
+        grapefruit.doTrade(otc, purchaseAmount, DPI, saleAmount);
+
+        address[] memory whos = new address[](1);
+        uint256[] memory amounts = new uint256[](1);
+        address[] memory token = new address[](1);
+        whos[0] = address(otc);
+        amounts[0] = 215518*10**18;
+        token[0] = address(yyCRV);
+
+        r2.whitelist_withdrawals(
+            whos,
+            amounts,
+            token
+        );
+
+        otc.setup_sale(
+            address(grapefruit),
+            yyCRV,
+            DPI,
+            saleAmount,
+            2 * 60 * 60, // 2 hours
+            10**16, // 1%
+            pairFor(yyCRV, WETH),
+            pairFor(WETH, DPI), // if two hop
+            address(r2)
+        );
+
+        yamhelper.ff(60*60*2);
+
+        otc.update_twap();
+
+        otc.bounds();
+        otc.quote(purchaseAmount, saleAmount);
+
+        yamhelper.write_map(DPI, "balanceOf(address)", address(grapefruit), purchaseAmount);
+
+        grapefruit.doTrade(otc, purchaseAmount, DPI, saleAmount);
+
+    }
+
     function test_single_hop() public {
         setup_reserves();
 

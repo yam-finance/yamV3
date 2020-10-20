@@ -196,10 +196,10 @@ contract OTC {
             require(withinBounds(purchase_amount, amount_out), "Purchase price not within bounds of TWAP");
 
             // transfers set amount of purchase token from trader to reserve
-            SafeERC20.safeTransferFrom(IERC20(reserves_purchase_token), approved_trader, reserve, purchase_amount);
+            SafeERC20.safeTransferFrom(IERC20(reserves_purchase_token), approved_trader, reserve, amount_in);
 
             // transfers requested amount of sale token from reserve to trader
-            SafeERC20.safeTransferFrom(IERC20(reserves_sell_token), reserve, approved_trader, amount_in);
+            SafeERC20.safeTransferFrom(IERC20(reserves_sell_token), reserve, approved_trader, amount_out);
         }
 
         complete = true;
