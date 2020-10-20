@@ -59,7 +59,7 @@ contract OTCProp is YAMv3Test {
         yamhelper.ff(60*60*2);
 
         otc.update_twap();
-        
+
         otc.bounds();
         otc.quote(purchaseAmount, 200000 * 10**18);
 
@@ -161,6 +161,37 @@ contract OTCProp is YAMv3Test {
         yamhelper.write_map(WETH, "balanceOf(address)", address(grapefruit), purchaseAmount);
 
         grapefruit.doTrade(otc, purchaseAmount, WETH, saleAmount);
+    }
+
+    function test_single_hop_dif_decs() public {
+        setup_reserves();
+
+        uint256 saleAmount = 215518*10**18;
+        otc.setup_sale(
+            address(grapefruit),
+            yyCRV,
+            USDC,
+            saleAmount,
+            2 * 60 * 60, // 2 hours
+            10**16, // 1%
+            pairFor(yyCRV, USDC),
+            address(0), // if two hop
+            address(r2)
+        );
+        yamhelper.ff(60*60*2);
+
+        otc.update_twap();
+
+        uint256 price = otc.consult();
+
+        uint256 purchaseAmount = 215518 * price;
+
+        otc.bounds();
+        otc.quote(purchaseAmount, saleAmount);
+
+        yamhelper.write_map(USDC, "balanceOf(address)", address(grapefruit), purchaseAmount);
+
+        grapefruit.doTrade(otc, purchaseAmount, USDC, saleAmount);
     }
 
     function test_double_hop_dif_dec() public {

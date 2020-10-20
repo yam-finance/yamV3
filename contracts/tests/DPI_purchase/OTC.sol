@@ -253,11 +253,11 @@ contract OTC {
             uint256 salePrice;
             uint256 one;
             if (saleTokenIs0) {
-                uint8 decs = ExpandedERC20(UniswapPair(uniswap_pair1).token0()).decimals();
+                uint8 decs = ExpandedERC20(reserves_sell_token).decimals();
                 require(decs <= 18, "too many decimals");
                 one = 10**uint256(decs);
             } else {
-                uint8 decs = ExpandedERC20(UniswapPair(uniswap_pair1).token1()).decimals();
+                uint8 decs = ExpandedERC20(reserves_sell_token).decimals();
                 require(decs <= 18, "too many decimals");
                 one = 10**uint256(decs);
             }
@@ -290,16 +290,26 @@ contract OTC {
 
             return purchasePrice.mul(salePrice).div(one);
         } else {
+            uint256 one;
+            if (saleTokenIs0) {
+                uint8 decs = ExpandedERC20(reserves_sell_token).decimals();
+                require(decs <= 18, "too many decimals");
+                one = 10**uint256(decs);
+            } else {
+                uint8 decs = ExpandedERC20(reserves_sell_token).decimals();
+                require(decs <= 18, "too many decimals");
+                one = 10**uint256(decs);
+            }
             // single hop
             uint256 purchasePrice;
             if (priceAverageSell > uint192(-1)) {
                // eat loss of precision
                // effectively: (x / 2**112) * 1e18
-               purchasePrice = (priceAverageSell >> 112) * BASE;
+               purchasePrice = (priceAverageSell >> 112) * one;
             } else {
                 // cant overflow
                 // effectively: (x * 1e18 / 2**112)
-                purchasePrice = (priceAverageSell * BASE) >> 112;
+                purchasePrice = (priceAverageSell * one) >> 112;
             }
             return purchasePrice;
         }
