@@ -717,6 +717,9 @@ contract LPTokenWrapper is Ownable {
         view
         returns (uint256)
     {
+        if (block.number < minBlockBeforeVoting) {
+            return 0;
+        }
         uint256 poolVotes = YAM(address(yam)).getCurrentVotes(address(uni_lp));
         uint32 nCheckpoints = numCheckpoints[account];
         uint256 lpStake = nCheckpoints > 0 ? checkpoints[account][nCheckpoints - 1].lpStake : 0;
