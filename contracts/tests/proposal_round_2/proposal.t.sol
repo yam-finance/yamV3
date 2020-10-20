@@ -53,7 +53,7 @@ contract Prop2 is YAMv3Test {
     //
     function test_FullProp() public {
         // -- force verbose
-        /* assertTrue(false); */
+        assertTrue(false);
 
         address[] memory targets = new address[](9);
         uint256[] memory values = new uint256[](9);
@@ -196,7 +196,7 @@ contract Prop2 is YAMv3Test {
 
         // -- update implementation
         yamV3._setImplementation(address(new_impl), false, "");
-        address yyCRVPool = pairFor(uniFact, address(yamV3), yyCRV);
+        /* address yyCRVPool = pairFor(uniFact, address(yamV3), yyCRV); */
         yamV3.delegateToImplementation(abi.encodeWithSignature("assignSelfDelegate(address)", eth_yam_lp));
         assertEq(yamV3.delegates(eth_yam_lp), eth_yam_lp);
 
@@ -267,7 +267,7 @@ contract Prop2 is YAMv3Test {
 
         // -- update implementation
         yamV3._setImplementation(address(new_impl), false, "");
-        address yyCRVPool = pairFor(uniFact, address(yamV3), yyCRV);
+        /* address yyCRVPool = pairFor(uniFact, address(yamV3), yyCRV); */
         yamV3.delegateToImplementation(abi.encodeWithSignature("assignSelfDelegate(address)", eth_yam_lp));
         assertEq(yamV3.delegates(eth_yam_lp), eth_yam_lp);
 
@@ -339,7 +339,8 @@ contract Prop2 is YAMv3Test {
 
     function test_EthRebaser() public {
         // -- force verbose output
-        assertTrue(false);
+        /* assertTrue(false); */
+        setup_rebaser();
 
         // increase liquidity by 10x
         increase_liquidity(eth_yam_lp, 10);

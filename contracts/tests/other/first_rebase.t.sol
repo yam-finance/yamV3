@@ -111,7 +111,8 @@ contract YAMv3RebaserTest is DSTest {
           string[] memory post_signatures,
           bytes[] memory post_calldatas
       ) = governor.getActions(id);
-
+      post_targets; post_values; post_signatures; // ssh
+      
       emit Logger(post_calldatas[0]);
 
       vote_pos_latest();

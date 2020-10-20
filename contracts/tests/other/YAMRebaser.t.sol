@@ -175,7 +175,7 @@ contract YAMRebaserTest is DSTest {
     // TESTS
     //
     function test_rebaser_addSyncPairs() public {
-        address dai_yam = pairFor(uniFact, address(yamV3), dai);
+        address dai_yam = pairFor(address(yamV3), dai);
         address[] memory unis = new address[](1);
         address[] memory bals = new address[](0);
         unis[0] = dai_yam;
@@ -194,7 +194,7 @@ contract YAMRebaserTest is DSTest {
         hevm.warp(now + 12 hours);
         assertEq(rebaser.getCurrentTWAP(), 1);
         hevm.warp(now + 12 hours);
-        address yyCRVPool = pairFor(uniFact, address(yamV3), yyCRV);
+        address yyCRVPool = pairFor(address(yamV3), yyCRV);
         (uint priceCumulative, uint32 blockTimestamp) =
            UniswapV2OracleLibrary.currentCumulativePrices(yyCRVPool, rebaser.isToken0());
          uint32 timeElapsed = blockTimestamp - rebaser.blockTimestampLast(); // overflow is desired
@@ -370,7 +370,7 @@ contract YAMRebaserTest is DSTest {
       uint256 epoch = rebaser.epoch();
       uint256 pre_scalingFactor = yamV3.yamsScalingFactor();
 
-      address yyCRVPool = pairFor(uniFact, address(yamV3), yyCRV);
+      address yyCRVPool = pairFor(address(yamV3), yyCRV);
       uint256 pre_balance = yamV3.balanceOf(me)
                             + yamV3.balanceOf(yyCRVPool)
                             + yamV3.balanceOf(address(user));
@@ -433,7 +433,7 @@ contract YAMRebaserTest is DSTest {
       uint256 epoch = rebaser.epoch();
       uint256 pre_scalingFactor = yamV3.yamsScalingFactor();
 
-      address yyCRVPool = pairFor(uniFact, address(yamV3), yyCRV);
+      address yyCRVPool = pairFor(address(yamV3), yyCRV);
       uint256 pre_balance = yamV3.balanceOf(me)
                             + yamV3.balanceOf(yyCRVPool)
                             + yamV3.balanceOf(address(user));
@@ -549,17 +549,16 @@ contract YAMRebaserTest is DSTest {
 
     // calculates the CREATE2 address for a pair without making any external calls
     function pairFor(
-        address factory,
         address token0,
         address token1
     )
         internal
-        pure
+        view
         returns (address pair)
     {
         pair = address(uint(keccak256(abi.encodePacked(
                 hex'ff',
-                factory,
+                uniFact,
                 keccak256(abi.encodePacked(token0, token1)),
                 hex'96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f' // init code hash
             ))));

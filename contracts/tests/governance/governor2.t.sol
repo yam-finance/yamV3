@@ -101,6 +101,7 @@ contract YAMv3GovTest is DSTest {
             string[] memory post_signatures,
             bytes[] memory post_calldatas
         ) = governor2.getActions(id);
+        post_targets; post_values; post_signatures; // ssh
 
         emit Logger(post_calldatas[0]);
 

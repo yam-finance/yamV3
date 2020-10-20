@@ -427,12 +427,7 @@ contract YAMv3FullTest is DSTest {
         );
 
         uint256 id = governor.latestProposalIds(me);
-        (
-            address[] memory post_targets,
-            uint[] memory post_values,
-            string[] memory post_signatures,
-            bytes[] memory post_calldatas
-        ) = governor.getActions(id);
+
         GovernorAlpha.ProposalState state = governor.state(id);
         assertTrue(state == GovernorAlpha.ProposalState.Pending);
     }
@@ -457,12 +452,7 @@ contract YAMv3FullTest is DSTest {
         );
 
         uint256 id = governor.latestProposalIds(me);
-        (
-            address[] memory post_targets,
-            uint[] memory post_values,
-            string[] memory post_signatures,
-            bytes[] memory post_calldatas
-        ) = governor.getActions(id);
+
         GovernorAlpha.ProposalState state = governor.state(id);
         assertTrue(state == GovernorAlpha.ProposalState.Pending);
 
@@ -504,12 +494,7 @@ contract YAMv3FullTest is DSTest {
         );
 
         uint256 id = governor.latestProposalIds(me);
-        (
-            address[] memory post_targets,
-            uint[] memory post_values,
-            string[] memory post_signatures,
-            bytes[] memory post_calldatas
-        ) = governor.getActions(id);
+
         GovernorAlpha.ProposalState state = governor.state(id);
         assertTrue(state == GovernorAlpha.ProposalState.Pending);
 
@@ -531,7 +516,7 @@ contract YAMv3FullTest is DSTest {
     }
 
     function transfer_tests() public {
-        uint256 scalingFactor = yamV3.yamsScalingFactor();
+        /* uint256 scalingFactor = yamV3.yamsScalingFactor(); */
 
         uint256 amount = 10**18;
         uint256 yamAmount = yamV3.fragmentToYam(amount);
@@ -572,7 +557,7 @@ contract YAMv3FullTest is DSTest {
     }
 
     function getIncentiveRewards() public {
-        address yyCRVPool = pairFor(uniFact, address(yamV3), yyCRV);
+        address yyCRVPool = pairFor(address(yamV3), yyCRV);
 
         uint256 pre_balance = yamV3.balanceOf(me)
                               + yamV3.balanceOf(yyCRVPool)
@@ -619,7 +604,7 @@ contract YAMv3FullTest is DSTest {
     function createPoolAndStartIncentives() public {
         createYYCRV_YAMPool();
 
-        IERC20 yyCRVPool = IERC20(pairFor(uniFact, address(yamV3), yyCRV));
+        IERC20 yyCRVPool = IERC20(pairFor(address(yamV3), yyCRV));
 
         yyCRVPool.approve(address(incentives), uint256(-1));
         // wait until incentive pool launch
@@ -657,7 +642,7 @@ contract YAMv3FullTest is DSTest {
       uint256 epoch = rebaser.epoch();
       uint256 pre_scalingFactor = yamV3.yamsScalingFactor();
 
-      address yyCRVPool = pairFor(uniFact, address(yamV3), yyCRV);
+      address yyCRVPool = pairFor(address(yamV3), yyCRV);
       uint256 pre_balance = yamV3.balanceOf(me)
                             + yamV3.balanceOf(yyCRVPool)
                             + yamV3.balanceOf(address(reserves))
@@ -727,7 +712,7 @@ contract YAMv3FullTest is DSTest {
       uint256 epoch = rebaser.epoch();
       uint256 pre_scalingFactor = yamV3.yamsScalingFactor();
 
-      address yyCRVPool = pairFor(uniFact, address(yamV3), yyCRV);
+      address yyCRVPool = pairFor(address(yamV3), yyCRV);
       uint256 pre_balance = yamV3.balanceOf(me)
                             + yamV3.balanceOf(yyCRVPool)
                             + yamV3.balanceOf(address(reserves))
@@ -858,17 +843,16 @@ contract YAMv3FullTest is DSTest {
 
     // calculates the CREATE2 address for a pair without making any external calls
     function pairFor(
-        address factory,
         address token0,
         address token1
     )
         internal
-        pure
+        view
         returns (address pair)
     {
         pair = address(uint(keccak256(abi.encodePacked(
                 hex'ff',
-                factory,
+                uniFact,
                 keccak256(abi.encodePacked(token0, token1)),
                 hex'96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f' // init code hash
             ))));

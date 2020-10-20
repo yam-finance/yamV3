@@ -115,6 +115,7 @@ contract YAMv3Test is DSTest {
         yamhelper.addKnown(address(yamV3), "balanceOfUnderlying(address)", 10);
         yamhelper.addKnown(address(yamV3), "initSupply()", 12);
         yamhelper.addKnown(address(yamV3), "checkpoints(address,uint32)", 15);
+        yamhelper.addKnown(address(yamV3), "numCheckpoints(address)", 16);
     }
 
     // --- helpers
@@ -122,7 +123,7 @@ contract YAMv3Test is DSTest {
     function joinYYCRV_YAMPool() internal {
         IERC20(yyCRV).approve(address(uniRouter), uint256(-1));
         yamV3.approve(address(uniRouter), uint256(-1));
-        address yyCRVPool = pairFor(uniFact, address(yamV3), yyCRV);
+        address yyCRVPool = pairFor(address(yamV3), yyCRV);
         UniswapPair(yyCRVPool).sync();
         (uint256 reserves0, uint256 reserves1, ) = UniswapPair(yyCRVPool).getReserves();
         uint256 quote;
@@ -148,7 +149,6 @@ contract YAMv3Test is DSTest {
     }
 
     function pairFor(
-        address factory,
         address tokenA,
         address tokenB
     )
@@ -159,8 +159,8 @@ contract YAMv3Test is DSTest {
         (address token0, address token1) = sortTokens(tokenA, tokenB);
         pair = address(uint(keccak256(abi.encodePacked(
                 hex'ff',
-                factory,
-                keccak256(abi.encodePacked(tokenA, tokenB)),
+                uniFact,
+                keccak256(abi.encodePacked(token0, token1)),
                 hex'96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f' // init code hash
             ))));
     }
@@ -178,7 +178,7 @@ contract YAMv3Test is DSTest {
         pair = address(uint(keccak256(abi.encodePacked(
                 hex'ff',
                 factory,
-                keccak256(abi.encodePacked(tokenA, tokenB)),
+                keccak256(abi.encodePacked(token0, token1)),
                 hex'e18a34eb0e04b04f7a0ac29a6e80748dca96319b42c54d679cb821dca90c6303' // init code hash
             ))));
     }
@@ -346,6 +346,7 @@ contract YAMv3Test is DSTest {
             bytes memory dat = yamhelper.flatten(ins[i]);
             bytes memory cald = abi.encodePacked(fsig, dat);
             (bool success, bytes memory rdat) = has_gov.call(cald);
+            success; rdat; // ssh
         }
 
         yamhelper.becomeGovernor(has_gov, prevGov);
