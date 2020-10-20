@@ -171,9 +171,11 @@ contract DualGovernorAlpha {
     {
         require(msg.sender == address(timelock), "GovernorAlpha::!timelock");
         if (index >= incentivizers.length) return;
-        for (uint i = index; i < incentivizers.length-1; i++) {
-            incentivizers[i] = incentivizers[i+1];
+
+        if (index != incentivizers.length-1) {
+          incentivizers[index] = incentivizers[incentivizers.length - 1];
         }
+
         incentivizers.length--;
     }
 
