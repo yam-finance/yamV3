@@ -995,10 +995,10 @@ contract YAMIncentivizerWithVoting is LPTokenWrapper, IRewardDistributionRecipie
             uint256 scalingFactor = YAM(address(yam)).yamsScalingFactor();
             uint256 newRewards = initreward.mul(scalingFactor).div(10**18);
             yam.mint(address(this), newRewards);
-
+            lastUpdateTime = block.timestamp;
             rewardRate = initreward.div(DURATION);
             periodFinish = block.timestamp.add(DURATION);
-            emit RewardAdded(initreward);
+            emit RewardAdded(newRewards);
         }
         _;
     }
@@ -1021,6 +1021,7 @@ contract YAMIncentivizerWithVoting is LPTokenWrapper, IRewardDistributionRecipie
           }
           lastUpdateTime = block.timestamp;
           periodFinish = block.timestamp.add(DURATION);
+          // Should be in scaled yams already
           emit RewardAdded(reward);
         } else {
           // increased buffer for scaling factor
