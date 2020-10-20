@@ -732,7 +732,7 @@ contract LPTokenWrapper is Ownable {
         view
         returns (uint256)
     {
-        require(blockNumber < block.number, "Incentivizer::_getPriorLPStake: not yet determined");
+        require(blockNumber < block.number, "Incentivizer::getPriorVotes: not yet determined");
         if (blockNumber < minBlockBeforeVoting) {
             return 0;
         }
