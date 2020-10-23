@@ -717,7 +717,7 @@ contract LPTokenWrapper is Ownable {
         view
         returns (uint256)
     {
-        if (block.number < minBlockBeforeVoting) {
+        if (!minBlockSet || block.number < minBlockBeforeVoting) {
             return 0;
         }
         uint256 poolVotes = YAM(address(yam)).getCurrentVotes(address(uni_lp));
@@ -1024,8 +1024,9 @@ contract YAMIncentivizerWithVoting is LPTokenWrapper, IRewardDistributionRecipie
           }
           lastUpdateTime = block.timestamp;
           periodFinish = block.timestamp.add(DURATION);
-          // Should be in scaled yams already
-          emit RewardAdded(reward);
+          uint256 scalingFactor = YAM(address(yam)).yamsScalingFactor();
+          uint256 newRewards = reward.mul(scalingFactor).div(10**18);
+          emit RewardAdded(newRewards);
         } else {
           // increased buffer for scaling factor
           require(initreward < uint256(-1) / 10**22, "rewards too large, would lock");
