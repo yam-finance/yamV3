@@ -733,7 +733,7 @@ contract LPTokenWrapper is Ownable {
         returns (uint256)
     {
         require(blockNumber < block.number, "Incentivizer::getPriorVotes: not yet determined");
-        if (blockNumber < minBlockBeforeVoting) {
+        if (!minBlockSet || blockNumber < minBlockBeforeVoting) {
             return 0;
         }
         // get incentivizer's uniswap pool yam votes
