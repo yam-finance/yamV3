@@ -462,6 +462,11 @@ contract YAMHelper is HEVMHelpers {
         hevm.roll(block.number + 1);
     }
 
+    function bong(uint256 x) public {
+        /* Hevm hevm = Hevm(address(CHEAT_CODE)); */
+        hevm.roll(block.number + x);
+    }
+
     function ff(uint256 time) public {
         /* Hevm hevm = Hevm(address(CHEAT_CODE)); */
         hevm.warp(block.timestamp + time);

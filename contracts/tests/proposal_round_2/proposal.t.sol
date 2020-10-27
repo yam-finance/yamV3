@@ -8,6 +8,7 @@ import { YAMIncentivizerWithVoting } from "./YAMIncentivesWithVoting.sol";
 import { DualGovernorAlpha } from "./YAMGovernorAlphaWithLps.sol";
 import { YAMDelegate2 } from "./YAMDelegate.sol";
 import { YAMRebaser2 } from "./YAMRebaserEth.sol";
+import { YAMReserves2 } from "../OTC/YAMReserves2.sol";
 
 contract Prop2 is YAMv3Test {
 
@@ -15,9 +16,14 @@ contract Prop2 is YAMv3Test {
     YAMIncentivizerWithVoting voting_inc;
     DualGovernorAlpha gov3;
     YAMDelegate2 new_impl;
-    address public constant eth_yam_lp = address(0xe2aAb7232a9545F29112f9e6441661fD6eEB0a5d);
+    address public constant eth_yam_lp = address(0x0F82E57804D0B1F6FAb2370A43dcFAd3c7cB239c);
     YAMRebaser2 eth_rebaser;
     address public constant eth_usdc_lp = address(0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc);
+    address public masterchef = address(0xc2EdaD668740f1aA35E4D8f227fB8E17dcA888Cd);
+    address public sushi = address(0x6B3595068778DD592e39A122f4f5a5cF09C90fE2);
+    address public xsushi = address(0x8798249c2E607446EfB7Ad49eC89dD1865Ff4272);
+    YAMReserves2 public r2_onchain = YAMReserves2(0x97990B693835da58A281636296D2Bf02787DEa17);
+
     function setUp() public {
         setUpCore();
         voting_inc = new YAMIncentivizerWithVoting();
@@ -41,7 +47,7 @@ contract Prop2 is YAMv3Test {
         address[] memory uni_like = new address[](2);
         address[] memory bals = new address[](0);
 
-        uni_like[0] = address(0x95b54C8Da12BB23F7A5F6E26C38D04aCC6F81820); // sushi eth/yam
+        uni_like[0] = eth_yam_lp; // sushi eth/yam
         uni_like[1] = address(0xb93Cc05334093c6B3b8Bfd29933bb8d5C031caBC); // yam_yusd
         eth_rebaser.addSyncPairs(uni_like, bals);
 
@@ -51,6 +57,144 @@ contract Prop2 is YAMv3Test {
     //
     // TESTS
     //
+
+    function test_stake() public {
+        uint256 printed_lp =  990*10**18;
+        yamhelper.write_balanceOf(eth_yam_lp, me, printed_lp); // we inflate away most other holders to simulate large number of stakers
+
+        // -- get yam governance
+        yamhelper.becomeGovernor(address(yamV3), me);
+        yamV3._acceptGov();
+        helper.write_flat(address(voting_inc), "owner()", me);
+
+        // -- set new incentivizer
+        yamV3._setIncentivizer(address(voting_inc));
+        voting_inc.setRewardDistribution(me);
+        assertEq(voting_inc.rewardDistribution(), me);
+        voting_inc.notifyRewardAmount(0);
+
+        // -- increase approval & stake
+        IERC20(eth_yam_lp).approve(address(voting_inc), uint(-1));
+        uint256 pre_stake = IERC20(eth_yam_lp).balanceOf(masterchef);
+        voting_inc.stake(IERC20(eth_yam_lp).balanceOf(me));
+        uint256 post_stake = IERC20(eth_yam_lp).balanceOf(masterchef);
+
+        assertEq(pre_stake + printed_lp, post_stake);
+
+        /* uint256 poolPower = yamV3.getCurrentVotes(eth_yam_lp);
+        uint256 mePower = yamV3.getCurrentVotes(me); */
+        yamhelper.bing(); // increase block number
+        assertEq(voting_inc.getPriorLPStake(me, block.number - 1), 990*10**18);
+        voting_inc.exit();
+    }
+
+    function test_sweep() public {
+        uint256 printed_lp =  990*10**18;
+        yamhelper.write_balanceOf(eth_yam_lp, me, printed_lp); // we inflate away most other holders to simulate large number of stakers
+
+        // -- get yam governance
+        yamhelper.becomeGovernor(address(yamV3), me);
+        yamV3._acceptGov();
+        helper.write_flat(address(voting_inc), "owner()", me);
+
+        // -- set new incentivizer
+        yamV3._setIncentivizer(address(voting_inc));
+        voting_inc.setRewardDistribution(me);
+        assertEq(voting_inc.rewardDistribution(), me);
+        voting_inc.notifyRewardAmount(0);
+
+        // -- increase approval & stake
+        IERC20(eth_yam_lp).approve(address(voting_inc), uint(-1));
+        uint256 pre_stake = IERC20(eth_yam_lp).balanceOf(masterchef);
+        voting_inc.stake(IERC20(eth_yam_lp).balanceOf(me));
+        uint256 post_stake = IERC20(eth_yam_lp).balanceOf(masterchef);
+
+        assertEq(pre_stake + printed_lp, post_stake);
+
+        /* uint256 poolPower = yamV3.getCurrentVotes(eth_yam_lp);
+        uint256 mePower = yamV3.getCurrentVotes(me); */
+        yamhelper.bing(); // increase block number
+        assertEq(voting_inc.getPriorLPStake(me, block.number - 1), 990*10**18);
+        yamhelper.bong(10000);
+        yamhelper.ff(10000*14);
+        voting_inc.sweepToXSushi();
+        assertTrue(IERC20(xsushi).balanceOf(address(voting_inc)) > 0); // got xsushi
+        voting_inc.exit();
+
+    }
+
+    function test_sushi_to_reserves() public {
+        uint256 printed_lp =  990*10**18;
+        yamhelper.write_balanceOf(eth_yam_lp, me, printed_lp); // we inflate away most other holders to simulate large number of stakers
+
+        // -- get yam governance
+        yamhelper.becomeGovernor(address(yamV3), me);
+        yamV3._acceptGov();
+        helper.write_flat(address(voting_inc), "owner()", me);
+
+        // -- set new incentivizer
+        yamV3._setIncentivizer(address(voting_inc));
+        voting_inc.setRewardDistribution(me);
+        assertEq(voting_inc.rewardDistribution(), me);
+        voting_inc.notifyRewardAmount(0);
+
+        // -- increase approval & stake
+        IERC20(eth_yam_lp).approve(address(voting_inc), uint(-1));
+        uint256 pre_stake = IERC20(eth_yam_lp).balanceOf(masterchef);
+        voting_inc.stake(IERC20(eth_yam_lp).balanceOf(me));
+        uint256 post_stake = IERC20(eth_yam_lp).balanceOf(masterchef);
+
+        assertEq(pre_stake + printed_lp, post_stake);
+
+        /* uint256 poolPower = yamV3.getCurrentVotes(eth_yam_lp);
+        uint256 mePower = yamV3.getCurrentVotes(me); */
+        yamhelper.bing(); // increase block number
+        assertEq(voting_inc.getPriorLPStake(me, block.number - 1), 990*10**18);
+        yamhelper.bong(10000);
+        yamhelper.ff(10000*14);
+        voting_inc.sweepToXSushi();
+        assertTrue(IERC20(xsushi).balanceOf(address(voting_inc)) > 0); // got xsushi
+        voting_inc.sushiToReserves(uint256(-1));
+        uint256 sushi_res = IERC20(sushi).balanceOf(address(r2_onchain));
+        assertEq(sushi_res, 0);
+        voting_inc.exit();
+    }
+
+    function test_sushi_emergency() public {
+        uint256 printed_lp =  990*10**18;
+        yamhelper.write_balanceOf(eth_yam_lp, me, printed_lp); // we inflate away most other holders to simulate large number of stakers
+
+        // -- get yam governance
+        yamhelper.becomeGovernor(address(yamV3), me);
+        yamV3._acceptGov();
+        helper.write_flat(address(voting_inc), "owner()", me);
+
+        // -- set new incentivizer
+        yamV3._setIncentivizer(address(voting_inc));
+        voting_inc.setRewardDistribution(me);
+        assertEq(voting_inc.rewardDistribution(), me);
+        voting_inc.notifyRewardAmount(0);
+
+        // -- increase approval & stake
+        IERC20(eth_yam_lp).approve(address(voting_inc), uint(-1));
+        uint256 pre_stake = IERC20(eth_yam_lp).balanceOf(masterchef);
+        voting_inc.stake(IERC20(eth_yam_lp).balanceOf(me));
+        uint256 post_stake = IERC20(eth_yam_lp).balanceOf(masterchef);
+
+        assertEq(pre_stake + printed_lp, post_stake);
+
+        /* uint256 poolPower = yamV3.getCurrentVotes(eth_yam_lp);
+        uint256 mePower = yamV3.getCurrentVotes(me); */
+        yamhelper.bing(); // increase block number
+        assertEq(voting_inc.getPriorLPStake(me, block.number - 1), 990*10**18);
+        yamhelper.bong(10000);
+        yamhelper.ff(10000*14);
+        voting_inc.sweepToXSushi();
+        assertTrue(IERC20(xsushi).balanceOf(address(voting_inc)) > 0); // got xsushi
+        voting_inc.emergencyMasterChefWithdraw();
+        voting_inc.exit();
+    }
+
     function test_FullProp() public {
         // -- force verbose
         assertTrue(false);

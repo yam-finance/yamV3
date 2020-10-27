@@ -602,15 +602,37 @@ pragma solidity 0.5.15;
 
 
 
+interface MasterChef {
+    function deposit(uint256, uint256) external;
+    function withdraw(uint256, uint256) external;
+    function emergencyWithdraw(uint256) external;
+}
 
-
+interface SushiBar {
+    function enter(uint256) external;
+    function leave(uint256) external;
+}
 
 contract LPTokenWrapper is Ownable {
     using SafeMath for uint256;
     using SafeERC20 for IERC20;
 
-    IERC20 public uni_lp = IERC20(0xe2aAb7232a9545F29112f9e6441661fD6eEB0a5d);
+    // -- yam things
+    IERC20 public slp = IERC20(0x0F82E57804D0B1F6FAb2370A43dcFAd3c7cB239c);
     IERC20 public yam = IERC20(0x0AaCfbeC6a24756c20D41914F2caba817C0d8521);
+    address public reserves = address(0x97990B693835da58A281636296D2Bf02787DEa17);
+
+    // -- Sushi things
+    IERC20 public sushi = IERC20(0x6B3595068778DD592e39A122f4f5a5cF09C90fE2);
+    SushiBar public sushibar = SushiBar(0x8798249c2E607446EfB7Ad49eC89dD1865Ff4272);
+    MasterChef public masterchef = MasterChef(0xc2EdaD668740f1aA35E4D8f227fB8E17dcA888Cd);
+    uint256 public pid = 44; // YAM/ETH pool id
+    bool public chefEmergency;
+
+    // approve masterchef on initiation
+    constructor () internal {
+        slp.approve(address(masterchef), uint256(-1));
+    }
 
     uint256 public minBlockBeforeVoting;
     bool public minBlockSet;
@@ -695,7 +717,10 @@ contract LPTokenWrapper is Ownable {
         }
         _moveDelegates(address(0), delegate, amount);
         _writeSupplyCheckpoint();
-        uni_lp.safeTransferFrom(msg.sender, address(this), amount);
+        // deposit here
+        slp.safeTransferFrom(msg.sender, address(this), amount);
+        // deposit to masterchef
+        depositToMasterChef(amount);
     }
 
     function withdraw(uint256 amount) public {
@@ -704,7 +729,62 @@ contract LPTokenWrapper is Ownable {
         _balances[msg.sender] = new_bal;
         _moveDelegates(delegates[msg.sender], address(0), amount);
         _writeSupplyCheckpoint();
-        uni_lp.safeTransfer(msg.sender, amount);
+        // withdraw from masterchef
+        withdrawFromMasterChef(amount);
+        // send to user
+        slp.safeTransfer(msg.sender, amount);
+    }
+
+    function depositToMasterChef(uint256 amount) internal {
+        // LP token allowance does not decrease when set to -1
+        if (!chefEmergency) {
+            masterchef.deposit(pid, amount);
+        }
+    }
+
+    function withdrawFromMasterChef(uint256 amount) internal {
+        if (!chefEmergency) {
+            masterchef.withdraw(pid, amount);
+        }
+    }
+
+    // callable by anyone, this function sweeps earned rewards into sushibar
+    function sweepToXSushi() public {
+        masterchef.withdraw(pid, 0);
+        uint256 sushi_bal = sushi.balanceOf(address(this));
+        if (sushi.allowance(address(this), address(sushibar)) < sushi_bal) {
+            sushi.approve(address(sushibar), uint256(-1));
+        }
+        sushibar.enter(sushi_bal);
+    }
+
+    function sushiToReserves(uint256 xsushi_amt) public {
+        require(owner() == msg.sender, "!owner");
+
+        // if -1, sweep all
+        if (xsushi_amt == uint256(-1)) {
+          xsushi_amt = IERC20(address(sushibar)).balanceOf(address(this));
+        }
+
+        sushibar.leave(xsushi_amt);
+        sushi.transfer(reserves, sushi.balanceOf(address(this)));
+    }
+
+    function setReserves(address newReserves) public {
+        require(owner() == msg.sender, "!owner");
+        reserves = newReserves;
+    }
+
+    function emergencyMasterChefWithdraw() public {
+        require(owner() == msg.sender, "!owner");
+        masterchef.emergencyWithdraw(pid);
+        chefEmergency = true;
+    }
+
+    function reenableChef() public {
+        require(owner() == msg.sender, "!owner");
+        require(chefEmergency, "!emergency");
+        chefEmergency = false;
     }
 
     /**
@@ -720,7 +800,7 @@ contract LPTokenWrapper is Ownable {
         if (!minBlockSet || block.number < minBlockBeforeVoting) {
             return 0;
         }
-        uint256 poolVotes = YAM(address(yam)).getCurrentVotes(address(uni_lp));
+        uint256 poolVotes = YAM(address(yam)).getCurrentVotes(address(slp));
         uint32 nCheckpoints = numCheckpoints[account];
         uint256 lpStake = nCheckpoints > 0 ? checkpoints[account][nCheckpoints - 1].lpStake : 0;
         uint256 percOfVotes = lpStake.mul(BASE).div(_totalSupply);
@@ -737,7 +817,7 @@ contract LPTokenWrapper is Ownable {
             return 0;
         }
         // get incentivizer's uniswap pool yam votes
-        uint256 poolVotes = YAM(address(yam)).getPriorVotes(address(uni_lp), blockNumber);
+        uint256 poolVotes = YAM(address(yam)).getPriorVotes(address(slp), blockNumber);
 
         if (poolVotes == 0) {
             return 0;
@@ -904,7 +984,7 @@ interface YAM {
 contract YAMIncentivizerWithVoting is LPTokenWrapper, IRewardDistributionRecipient {
     uint256 public constant DURATION = 7 days;
 
-    uint256 public initreward = 674325 * 10**17; // 67432.5 yams
+    uint256 public initreward = 5000 * 10**17; // 5000 yams
     uint256 public starttime = 1601928000; // Monday, October 5, 2020 8:00:00 PM (UTC +00:00)
 
     uint256 public periodFinish = 0;
@@ -994,7 +1074,7 @@ contract YAMIncentivizerWithVoting is LPTokenWrapper, IRewardDistributionRecipie
         if (breaker) {
           // do nothing
         } else if (block.timestamp >= periodFinish && initialized) {
-            initreward = initreward.mul(90).div(100);
+            /* initreward = initreward.mul(90).div(100); */ // static 5k per week
             uint256 scalingFactor = YAM(address(yam)).yamsScalingFactor();
             uint256 newRewards = initreward.mul(scalingFactor).div(10**18);
             yam.mint(address(this), newRewards);
@@ -1054,7 +1134,7 @@ contract YAMIncentivizerWithVoting is LPTokenWrapper, IRewardDistributionRecipie
         // only gov
         require(msg.sender == owner(), "!governance");
         // cant take staked asset
-        require(_token != uni_lp, "uni_lp");
+        require(_token != slp, "slp");
         // cant take reward asset
         require(_token != yam, "yam");
 
