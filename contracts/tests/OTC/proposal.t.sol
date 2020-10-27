@@ -22,7 +22,8 @@ contract OTCProp is YAMv3Test {
 
     address DPI = address(0x1494CA1F11D487c2bBe4543E90080AeBa4BA3C2b);
     address USDC = address(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
-
+    OTC otc_onchain = OTC(0x92ab5CCe7Af1605da2681458aE52a0BEc4eCB74C);
+    YAMReserves2 r2_onchain = YAMReserves2(0x97990B693835da58A281636296D2Bf02787DEa17);
     Trader grapefruit;
 
     function setUp() public {
@@ -33,8 +34,113 @@ contract OTCProp is YAMv3Test {
             address(yyCRV),
             address(yamV3)
         );
-        yamhelper.write_flat(address(reserves), "gov()", me);
+        /* yamhelper.write_flat(address(reserves), "gov()", me); */
     }
+
+    function test_bounds_and_consult() public {
+      otc_onchain.consult();
+      otc_onchain.bounds();
+    }
+
+    function test_otc_prop() public {
+      yamhelper.getQuorum(yamV3, me);
+
+      GovernorAlpha gov = GovernorAlpha(timelock.admin());
+      uint256 id = gov.latestProposalIds(me);
+
+      vote_pos_latest();
+
+      hevm.roll(block.number +  12345);
+
+      GovernorAlpha.ProposalState state = gov.state(id);
+      assertTrue(state == GovernorAlpha.ProposalState.Succeeded);
+
+      gov.queue(id);
+
+      hevm.warp(now + timelock.delay());
+
+      gov.execute(id);
+      assertTrue(false);
+    }
+
+    function test_live() public {
+        assertTrue(false); // force verbose
+        address[] memory targets = new address[](6);
+        uint256[] memory values = new uint256[](6);
+        string[] memory signatures = new string[](6);
+        bytes[] memory calldatas = new bytes[](6);
+        string memory description = "Accept governances, upgrade reserves, DPI otc purchase";
+
+        /// ---- ACCEPT GOVS ---- \\\
+        // -- accept gov otc
+        targets[0] = address(otc_onchain);
+        signatures[0] = "acceptGov()";
+
+        // -- accept gov reserves
+        targets[1] = address(r2_onchain);
+        signatures[1] = "_acceptGov()";
+
+
+        /// ---- UPGRADE RESERVES ---- \\\
+        // -- migrate reserves
+        targets[2] = address(reserves);
+        signatures[2] = "migrateReserves(address,address[])";
+        address[] memory tokens = new address[](1);
+        tokens[0] = yyCRV;
+        calldatas[2] = abi.encode(address(r2_onchain), tokens);
+
+        // -- update reserves in rebaser
+        targets[3] = address(rebaser);
+        signatures[3] = "setReserveContract(address)";
+        calldatas[3] = abi.encode(address(r2_onchain));
+
+
+        /// ---- SETUP OTC ---- \\\
+        targets[4] = address(r2_onchain);
+        signatures[4] = "whitelistWithdrawals(address[],uint256[],address[])";
+        address[] memory whos = new address[](1);
+        uint256[] memory amounts = new uint256[](1);
+        address[] memory token = new address[](1);
+        whos[0] = address(otc_onchain);
+        amounts[0] = 215518*10**18;
+        token[0] = address(yyCRV);
+        calldatas[4] = abi.encode(whos, amounts, token);
+
+        targets[5] = address(otc_onchain);
+        signatures[5] = "setup_sale(address,address,address,uint256,uint256,uint256,address,address,address)";
+        calldatas[5] = abi.encode(
+          address(0x97a7E840D05Ec436A2d7FE3b5408f89467174dE6), // trader
+          address(yyCRV), // sell_token,
+          address(DPI), // purchase_token,
+          uint256(amounts[0]), // sell_amount_,
+          uint256(2 * 60 * 60), // twap_period,
+          uint256(5 * 10**16), // twap_bounds_,
+          address(0x9346C20186D1794101B8517177A1b15c49c9ff9b), // uniswap1,
+          address(0x4d5ef58aAc27d99935E5b6B4A6778ff292059991), // uniswap2, // if two hop
+          address(r2_onchain) // reserve_
+        );
+
+        yamhelper.getQuorum(yamV3, me);
+
+        roll_prop(
+          targets,
+          values,
+          signatures,
+          calldatas,
+          description
+        );
+
+        yamhelper.ff(60*60*2);
+
+        otc_onchain.update_twap();
+
+        otc_onchain.bounds();
+        otc_onchain.quote(3200*10**18, amounts[0]);
+
+        /* yamhelper.write_map(DPI, "balanceOf(address)", address(grapefruit), 3200*10**18); */
+
+        /* grapefruit.doTrade(otc, 3200*10**18, DPI, saleAmount); */
+      }
 
     //
     // TESTS
@@ -168,7 +274,7 @@ contract OTCProp is YAMv3Test {
         amounts[0] = 215518*10**18;
         token[0] = address(yyCRV);
 
-        r2.whitelist_withdrawals(
+        r2.whitelistWithdrawals(
             whos,
             amounts,
             token
@@ -339,7 +445,7 @@ contract OTCProp is YAMv3Test {
         amounts[0] = 215518*10**18;
         token[0] = address(yyCRV);
 
-        r2.whitelist_withdrawals(
+        r2.whitelistWithdrawals(
             whos,
             amounts,
             token
@@ -362,7 +468,7 @@ contract OTCProp is YAMv3Test {
         amounts[0] = 250000*10**18;
         token[0] = address(yyCRV);
 
-        r2.whitelist_withdrawals(
+        r2.whitelistWithdrawals(
             whos,
             amounts,
             token

@@ -107,7 +107,7 @@ contract YAMReserves2 {
     /**
      * @notice Approves an address to do a withdraw from this contract for specified amount
      */
-    function whitelist_withdrawals(
+    function whitelistWithdrawals(
         address[] memory whos,
         uint256[] memory amounts,
         address[] memory tokens
@@ -120,6 +120,21 @@ contract YAMReserves2 {
         for (uint256 i = 0; i < whos.length; i++) {
             IERC20 token = IERC20(tokens[i]);
             token.approve(whos[i], amounts[i]);
+        }
+    }
+
+    function oneTimeTransfers(
+        address[] memory whos,
+        uint256[] memory amounts,
+        address[] memory tokens
+    )
+        public
+        onlyGov
+    {
+        require(whos.length == amounts.length, "Reserves::whitelist: !len parity 1");
+        require(amounts.length == tokens.length, "Reserves::whitelist: !len parity 2");
+        for (uint256 i = 0; i < whos.length; i++) {
+            SafeERC20.safeTransfer(IERC20(tokens[i]), whos[i], amounts[i]);
         }
     }
 

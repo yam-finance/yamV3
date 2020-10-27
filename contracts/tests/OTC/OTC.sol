@@ -34,12 +34,19 @@ contract OTC {
     /// @notice Current uniswap pair for purchase & sale tokens
     address public uniswap_pair1;
 
+    /// @notice Second uniswap pair for if TWAP uses two markets to determine price (for liquidity purposes)
     address public uniswap_pair2;
 
+    /// @notice Flag for if purchase token is toke 0 in uniswap pair 2
     bool public purchaseTokenIs0;
+
+    /// @notice Flag for if sale token is token 0 in uniswap pair
     bool public saleTokenIs0;
 
+    /// @notice TWAP for first hop
     uint256 public priceAverageSell;
+
+    /// @notice TWAP for second hop
     uint256 public priceAverageBuy;
 
     /// @notice last TWAP update time
@@ -60,11 +67,13 @@ contract OTC {
     /// @notice Uniswap Factory
     address public constant uniFact = address(0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f);
 
+    /// @notice constant used for percentage calculations
     uint256 public constant BASE = 10**18;
 
     /// @notice Reserve to withdraw from
     address public reserve;
 
+    /// @notice % bound away from TWAP price
     uint256 public twap_bounds;
 
     /// @notice counts number of twaps
@@ -73,7 +82,10 @@ contract OTC {
     /// @notice denotes a trade as complete
     bool public complete;
 
+    /// @notice governor
     address public gov;
+
+    /// @notice pending governor
     address public pendingGov;
 
     event NewPendingGov(address oldPendingGov, address pendingGov);
