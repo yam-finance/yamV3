@@ -378,7 +378,7 @@ contract YAMHelper is HEVMHelpers {
         write_map(who, "balanceOfUnderlying(address)", acct, value);
     }
 
-    function writeBalance(YAMDelegator yamV3, address account, uint256 value) public {
+    function writeBoU(YAMDelegator yamV3, address account, uint256 value) public {
         uint256 bal = yamV3.balanceOfUnderlying(account);
         write_map(address(yamV3), "balanceOfUnderlying(address)", account, value);
         assertEq(yamV3.balanceOfUnderlying(account), value);
@@ -402,12 +402,37 @@ contract YAMHelper is HEVMHelpers {
         assertEq(yamV3.totalSupply(), newTS);
     }
 
+    function writeBalance(YAMDelegator yamV3, address account, uint256 value) public {
+        uint256 bal = yamV3.balanceOf(account);
+        uint256 bou = yamV3.fragmentToYam(value);
+        write_map(address(yamV3), "balanceOfUnderlying(address)", account, bou);
+        assertEq(yamV3.balanceOfUnderlying(account), bou);
+        write_last_checkpoint(yamV3, account, value);
+
+        uint256 newIS;
+        uint256 newTS;
+        if (bou > value) {
+            uint256 negdelta = bou - value;
+            newIS = yamV3.initSupply() - negdelta;
+            newTS = yamV3.yamToFragment(newIS);
+        } else {
+            uint256 posdelta = value - bou;
+            newIS = yamV3.initSupply() + posdelta;
+            newTS = yamV3.yamToFragment(newIS);
+        }
+
+        write_flat(address(yamV3), "initSupply()", newIS);
+        assertEq(yamV3.initSupply(), newIS);
+        write_flat(address(yamV3), "totalSupply()", newTS);
+        assertEq(yamV3.totalSupply(), newTS);
+    }
+
     function getProposal(YAMDelegator yamV3, address account) public {
-        writeBalance(yamV3, account, 10**24*51000);
+        writeBoU(yamV3, account, 10**24*51000);
     }
 
     function getQuorum(YAMDelegator yamV3, address account) public {
-        writeBalance(yamV3, account, 10**24*210000);
+        writeBoU(yamV3, account, 10**24*210000);
         bing();
     }
 

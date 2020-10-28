@@ -116,6 +116,8 @@ contract YAMv3Test is DSTest {
         yamhelper.addKnown(address(yamV3), "initSupply()", 12);
         yamhelper.addKnown(address(yamV3), "checkpoints(address,uint32)", 15);
         yamhelper.addKnown(address(yamV3), "numCheckpoints(address)", 16);
+        // 0 out balance
+        yamhelper.writeBoU(yamV3, me, 0);
     }
 
     // --- helpers
