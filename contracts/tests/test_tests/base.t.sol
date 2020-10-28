@@ -10,7 +10,7 @@ import { YAMDelegator } from "../../token/YAMDelegator.sol";
 import { YAMDelegate } from "../../token/YAMDelegate.sol";
 import { Migrator } from "../../migrator/Migrator.sol";
 import { YAMRebaser } from "../../rebaser/YAMRebaser.sol";
-import { YAMReserves } from "../../reserves/YAMReserves.sol";
+import { YAMReserves2 } from "../OTC/YAMReserves2.sol";
 import { GovernorAlpha } from "../../governance/YAMGovernorAlpha.sol";
 import { Timelock } from "../../governance/TimeLock.sol";
 import { YAMIncentivizer } from "../../incentivizers/YAMIncentives.sol";
@@ -81,7 +81,7 @@ contract YAMv3Test is DSTest {
     YAMDelegator yamV3 = YAMDelegator(0x0AaCfbeC6a24756c20D41914F2caba817C0d8521);
     YAMIncentivizer incentivizer = YAMIncentivizer(0x5b0501F7041120d36Bc8c6DC3FAeA0b74b32a0Ed);
     YAMRebaser rebaser = YAMRebaser(0x1fB361f274f316d383B94D761832AB68099A7B00); // rebaser contract
-    YAMReserves reserves = YAMReserves(0xCF27cA116dd5C7b4201c75B46489D1c075362087);
+    YAMReserves2 reserves = YAMReserves2(0x97990B693835da58A281636296D2Bf02787DEa17);
     Timelock timelock = Timelock(0x8b4f1616751117C38a0f84F9A146cca191ea3EC5); // governance owner
     GovernorAlpha public governor = GovernorAlpha(0x78BdD33e95ECbcAC16745FB28DB0FFb703344026);
 
