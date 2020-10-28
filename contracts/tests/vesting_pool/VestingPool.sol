@@ -26,7 +26,7 @@ contract VestingPool {
     address public pendingGov;
 
     /// @notice Mapping containing valid stream managers
-    mapping(address => bool) public isStreamManager;
+    mapping(address => bool) public isSubGov;
 
     /// @notice Amount of tokens allocated to streams that hasn't yet been claimed
     uint256 public totalUnclaimedInStreams;
@@ -41,9 +41,9 @@ contract VestingPool {
     YAMDelegate2 public yam;
 
     /**
-     * @notice Event emitted when a stream manager is enabled/disabled
+     * @notice Event emitted when a sub gov is enabled/disabled
      */
-    event StreamManagerModified(
+    event SubGovModified(
         address account,
         bool isMod
     );
@@ -102,7 +102,7 @@ contract VestingPool {
 
     modifier canManageStreams() {
         require(
-            isStreamManager[msg.sender] || (msg.sender == gov),
+            isSubGov[msg.sender] || (msg.sender == gov),
             "VestingPool::canManageStreams: account cannot manage streams"
         );
         _;
@@ -220,17 +220,17 @@ contract VestingPool {
         }
     }
 
-   /** 
+   /**
      * @dev Set whether an account can open/close streams. Only callable by the current gov contract
      * @param account The acount to set permissions for.
-     * @param _isStreamManager Whether or not this account can manage streams
+     * @param _isSubGov Whether or not this account can manage streams
      */
-    function setIsStreamManager(address account, bool _isStreamManager)
+    function setSubGov(address account, bool _isSubGov)
         public
         onlyGov
     {
-        isStreamManager[account] = _isStreamManager;
-        emit StreamManagerModified(account, _isStreamManager);
+        isSubGov[account] = _isSubGov;
+        emit SubGovModified(account, _isSubGov);
     }
 
     /** @notice sets the pendingGov
