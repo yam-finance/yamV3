@@ -245,7 +245,7 @@ contract VestingPool {
         emit NewPendingGov(oldPendingGov, pendingGov_);
     }
 
-    /** @notice allows governance to assign delegate to self
+    /** @notice accepts governance over this contract
      *
      */
     function _acceptGov()
