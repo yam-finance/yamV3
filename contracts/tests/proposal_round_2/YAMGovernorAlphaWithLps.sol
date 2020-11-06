@@ -155,6 +155,15 @@ contract DualGovernorAlpha {
         guardian = msg.sender;
     }
 
+    function getIncentivizers()
+        public
+        view
+        returns (address[] memory)
+    {
+        address[] memory incs = incentivizers;
+        return incs;
+    }
+
     function addIncentivizer(address incentivizer)
         public
     {

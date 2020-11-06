@@ -135,7 +135,7 @@ contract YAMRebaser2 {
     address public reservesContract;
 
     /// @notice pair for reserveToken <> YAM
-    address public uniswap_pair;
+    address public trade_pair;
 
     /// @notice pair for reserveToken <> YAM
     address public eth_usdc_pair;
@@ -182,7 +182,7 @@ contract YAMRebaser2 {
     constructor(
         address yamAddress_,
         address reserveToken_,
-        address uniswap_factory,
+        address factory,
         address reservesContract_,
         address public_goods_,
         uint256 public_goods_perc_
@@ -201,14 +201,14 @@ contract YAMRebaser2 {
               isToken0 = false;
           }
           // uniswap YAM<>Reserve pair
-          uniswap_pair = pairFor(uniswap_factory, token0, token1);
+          trade_pair = pairForSushi(factory, token0, token1);
 
 
           // get eth_usdc piar
           address USDC = address(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
 
           // USDC < WETH address, so USDC is token0
-          eth_usdc_pair = pairFor(uniswap_factory, USDC, reserveToken_);
+          eth_usdc_pair = pairForSushi(factory, USDC, reserveToken_);
 
           // Reserves contract is mutable
           reservesContract = reservesContract_;
@@ -388,7 +388,7 @@ contract YAMRebaser2 {
     {
         require(timeOfTWAPInit == 0, "already activated");
         (uint priceCumulative, uint32 blockTimestamp) =
-           UniswapV2OracleLibrary.currentCumulativePrices(uniswap_pair, isToken0);
+           UniswapV2OracleLibrary.currentCumulativePrices(trade_pair, isToken0);
 
        (uint priceCumulativeUSDC, ) =
           UniswapV2OracleLibrary.currentCumulativePrices(eth_usdc_pair, false);
@@ -484,7 +484,7 @@ contract YAMRebaser2 {
         public
     {
         // enforce that it is coming from uniswap
-        require(msg.sender == uniswap_pair, "bad msg.sender");
+        require(msg.sender == trade_pair, "bad msg.sender");
         // enforce that this contract called uniswap
         require(sender == address(this), "bad origin");
         (UniVars memory uniVars) = abi.decode(data, (UniVars));
@@ -493,15 +493,15 @@ contract YAMRebaser2 {
 
         if (uniVars.amountFromReserves > 0) {
             // transfer from reserves and mint to uniswap
-            yam.transferFrom(reservesContract, uniswap_pair, uniVars.amountFromReserves);
+            yam.transferFrom(reservesContract, trade_pair, uniVars.amountFromReserves);
             if (uniVars.amountFromReserves < uniVars.yamsToUni) {
                 // if the amount from reserves > yamsToUni, we have fully paid for the yCRV tokens
                 // thus this number would be 0 so no need to mint
-                yam.mint(uniswap_pair, uniVars.yamsToUni.sub(uniVars.amountFromReserves));
+                yam.mint(trade_pair, uniVars.yamsToUni.sub(uniVars.amountFromReserves));
             }
         } else {
             // mint to uniswap
-            yam.mint(uniswap_pair, uniVars.yamsToUni);
+            yam.mint(trade_pair, uniVars.yamsToUni);
         }
 
         // mint unsold to mintAmount
@@ -559,7 +559,7 @@ contract YAMRebaser2 {
     )
         internal
     {
-        UniswapPair pair = UniswapPair(uniswap_pair);
+        UniswapPair pair = UniswapPair(trade_pair);
 
         YAMTokenInterface yam = YAMTokenInterface(yamAddress);
 
@@ -749,7 +749,7 @@ contract YAMRebaser2 {
         returns (uint256)
     {
         (uint priceCumulative, uint32 blockTimestamp) =
-            UniswapV2OracleLibrary.currentCumulativePrices(uniswap_pair, isToken0);
+            UniswapV2OracleLibrary.currentCumulativePrices(trade_pair, isToken0);
         (uint priceCumulativeETH, ) =
             UniswapV2OracleLibrary.currentCumulativePrices(eth_usdc_pair, false);
         uint32 timeElapsed = blockTimestamp - blockTimestampLast; // overflow is desired
@@ -801,7 +801,7 @@ contract YAMRebaser2 {
         returns (uint256)
     {
         (uint priceCumulative, uint32 blockTimestamp) =
-           UniswapV2OracleLibrary.currentCumulativePrices(uniswap_pair, isToken0);
+           UniswapV2OracleLibrary.currentCumulativePrices(trade_pair, isToken0);
         (uint priceCumulativeETH, ) =
            UniswapV2OracleLibrary.currentCumulativePrices(eth_usdc_pair, false);
 
@@ -983,6 +983,24 @@ contract YAMRebaser2 {
                 factory,
                 keccak256(abi.encodePacked(token0, token1)),
                 hex'96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f' // init code hash
+            ))));
+    }
+
+    function pairForSushi(
+        address factory,
+        address tokenA,
+        address tokenB
+    )
+        internal
+        pure
+        returns (address pair)
+    {
+        (address token0, address token1) = sortTokens(tokenA, tokenB);
+        pair = address(uint(keccak256(abi.encodePacked(
+                hex'ff',
+                factory,
+                keccak256(abi.encodePacked(token0, token1)),
+                hex'e18a34eb0e04b04f7a0ac29a6e80748dca96319b42c54d679cb821dca90c6303' // init code hash
             ))));
     }
 

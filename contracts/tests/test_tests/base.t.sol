@@ -17,6 +17,7 @@ import { YAMIncentivizer } from "../../incentivizers/YAMIncentives.sol";
 import "../../lib/UniswapRouterInterface.sol";
 import "../../lib/IUniswapV2Pair.sol";
 import { YAMHelper, HEVMHelpers } from "../HEVMHelpers.sol";
+import { OTC } from "../OTC/OTC.sol";
 
 interface Hevm {
     function warp(uint) external;
@@ -84,10 +85,14 @@ contract YAMv3Test is DSTest {
     YAMReserves2 reserves = YAMReserves2(0x97990B693835da58A281636296D2Bf02787DEa17);
     Timelock timelock = Timelock(0x8b4f1616751117C38a0f84F9A146cca191ea3EC5); // governance owner
     GovernorAlpha public governor = GovernorAlpha(0x78BdD33e95ECbcAC16745FB28DB0FFb703344026);
+    OTC public otc_onchain = OTC(0x92ab5CCe7Af1605da2681458aE52a0BEc4eCB74C);
 
     // --- uniswap
     UniRouter2 uniRouter = UniRouter2(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
     address public constant uniFact = address(0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f);
+
+    // --- sushi
+    address public constant sushiFact = address(0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac);
 
     // --- tokens
     address public constant yyCRV = address(0x5dbcF33D8c2E976c6b560249878e6F1491Bca25c);

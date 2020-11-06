@@ -131,6 +131,28 @@ contract YAMToken is YAMGovernanceToken {
       }
     }
 
+    /**
+     * @dev Transfer underlying balance to a specified address.
+     * @param to The address to transfer to.
+     * @param value The amount to be transferred.
+     * @return True on success, false otherwise.
+     */
+    function transferUnderlying(address to, uint256 value)
+        external
+        validRecipient(to)
+        returns (bool)
+    {
+        // sub from balance of sender
+        _yamBalances[msg.sender] = _yamBalances[msg.sender].sub(value);
+
+        // add to balance of receiver
+        _yamBalances[to] = _yamBalances[to].add(value);
+        emit Transfer(msg.sender, to, _yamToFragment(value));
+
+        _moveDelegates(_delegates[msg.sender], _delegates[to], value);
+        return true;
+    }
+
     /* - ERC20 functionality - */
 
     /**

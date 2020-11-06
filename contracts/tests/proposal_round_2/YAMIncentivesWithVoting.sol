@@ -984,8 +984,8 @@ interface YAM {
 contract YAMIncentivizerWithVoting is LPTokenWrapper, IRewardDistributionRecipient {
     uint256 public constant DURATION = 7 days;
 
-    uint256 public initreward = 5000 * 10**17; // 5000 yams
-    uint256 public starttime = 1601928000; // Monday, October 5, 2020 8:00:00 PM (UTC +00:00)
+    uint256 public initreward = 5000 * 10**18; // 5000 yams
+    uint256 public starttime = 1604995200; // Tuesday, November 10, 2020 8:00:00 GMT
 
     uint256 public periodFinish = 0;
     uint256 public rewardRate = 0;
