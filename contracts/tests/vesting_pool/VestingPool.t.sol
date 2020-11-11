@@ -18,6 +18,11 @@ contract VestingPoolTest is YAMv3Test {
             address(vestingPool),
             100000000000000000000000000
         );
+        yamhelper.write_balanceOfUnderlying(
+            address(yamV3),
+            address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE),
+            0
+        );
     }
 
     //
@@ -48,6 +53,6 @@ contract VestingPoolTest is YAMv3Test {
         vestingPool.payout(poolId);
         (claimableUnderlying, claimableBalance) = vestingPool.claimable(poolId);
         assertEq(claimableUnderlying, 0);
-        assertEq(yamV3.balanceOfUnderlying(address(this)), 100000000000000000000000000); // I expected to be slightly less than 100*10^24 due to fragment/yam conversion, but it's slightly more?
+        assertEq(yamV3.balanceOfUnderlying(address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE)), 99999999999999999999999999); // I expected to be slightly less than 100*10^24 due to fragment/yam conversion, but it's slightly more?
     }
 }

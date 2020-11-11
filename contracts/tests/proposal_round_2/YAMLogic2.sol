@@ -152,7 +152,7 @@ contract YAMToken is YAMGovernanceToken {
         _moveDelegates(_delegates[msg.sender], _delegates[to], value);
         return true;
     }
-
+    
     /* - ERC20 functionality - */
 
     /**
