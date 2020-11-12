@@ -114,6 +114,7 @@ contract MonthlyAllowance {
         require(newPaidThisEpoch <= MONTHLY_LIMIT, "MonthlyAllowance::pay: Monthly allowance exceeded");
         spentPerEpoch[epoch] = newPaidThisEpoch;
         SafeERC20.safeTransferFrom(paymentAsset, reserves, recipient, amount);
+        emit Payment(recipient, amount);
     }
 
     function currentEpoch()

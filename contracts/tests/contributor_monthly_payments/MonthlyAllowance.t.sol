@@ -33,8 +33,6 @@ contract MonthlyAllowanceTest is YAMv3Test {
     //
     // TESTS
     //
-    event TEST(bytes one, bytes two);
-    event BALANCE(uint256 balance);
 
     function test_paymentsByGov() public {
         // -- force verbose
