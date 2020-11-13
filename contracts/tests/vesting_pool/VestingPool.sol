@@ -185,7 +185,7 @@ contract VestingPool {
         public
         canManageStreams
     {
-        uint256 amountPaid = payout(streamId);
+        payout(streamId);
         streams[streamId] = Stream(
             address(0x0000000000000000000000000000000000000000),
             0,
