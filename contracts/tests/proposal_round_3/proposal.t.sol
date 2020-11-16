@@ -82,7 +82,7 @@ contract Prop3 is YAMv3Test {
       targets[5] = address(yamV3);
       values[5] = 0;
       signatures[5] = "mintUnderlying(address,uint256)";
-      calldatas[5] = abi.encode(address(vestingPool),100000 * (10**24));
+      calldatas[5] = abi.encode(address(vestingPool), 719000 * (10**24));
 
       // -- Accept gov over INDEX staker
       targets[6] = address(index_onchain);
@@ -126,7 +126,7 @@ contract Prop3 is YAMv3Test {
       assertEq(yamV3.implementation(), yamLogic3);
 
       // -- Assert that the vesting pool got the correct amount of YAM
-      assertEq(yamV3.balanceOfUnderlying(address(vestingPool)), 100000 * (10**24));
+      assertEq(yamV3.balanceOfUnderlying(address(vestingPool)), 719000 * (10**24));
 
       assertEq(index_onchain.gov(), address(timelock));
 
