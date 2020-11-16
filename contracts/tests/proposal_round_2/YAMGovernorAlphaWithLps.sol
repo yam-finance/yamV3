@@ -171,6 +171,10 @@ contract DualGovernorAlpha {
         // otherwise could brick governance
         Incentivizer(incentivizer).getPriorVotes(guardian, block.number - 1);
 
+        for (uint256 i = 0; i < incentivizers.length; i++) {
+            require(incentivizers[i] != incentivizer, "already added");
+        }
+
         require(msg.sender == address(timelock), "GovernorAlpha::!timelock");
         incentivizers.push(incentivizer);
     }

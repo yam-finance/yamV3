@@ -25,37 +25,28 @@ contract Prop2 is YAMv3Test {
     YAMReserves2 public r2_onchain = YAMReserves2(0x97990B693835da58A281636296D2Bf02787DEa17);
 
 
-    DualGovernorAlpha gov3_onchain = DualGovernorAlpha(0xEDf7C3D4CB2e89506C1469709073025d09D47bDd);
-    YAMIncentivizerWithVoting inc_onchain = YAMIncentivizerWithVoting(0x6eBF85F830e7D5b3D01Eb64e34A1003223942EAD);
+    DualGovernorAlpha gov3_onchain = DualGovernorAlpha(0xC32f9b0292965c5dd4A0Ea1abfcC1f5a36d66986);
+    YAMIncentivizerWithVoting inc_onchain = YAMIncentivizerWithVoting(0xD67c05523D8ec1c60760Fd017Ef006b9F6e496D0);
     YAMRebaser2 eth_rebaser_onchain = YAMRebaser2(0xD93f403b432d39aa0f736C2021bE6051d85a1D55);
     YAMDelegate2 impl_onchain = YAMDelegate2(0x209Ddd6b50f748b6EAA25A2793341566492B2526);
 
     function setUp() public {
         setUpCore();
-        /* setup_new_inc();
-        setup_new_gov();
+        /* setup_new_inc(); */
+        /* setup_new_gov();
         new_impl = new YAMDelegate2();
         setup_new_rebaser(); */
     }
 
-
-    function test_onchain_prop_bug() public {
-      GovernorAlpha gov = GovernorAlpha(timelock.admin());
-      gov.execute(5);
-
-      uint256 lut = inc_onchain.lastUpdateTime();
-
-      uint256 printed_lp =  990*10**18;
-      yamhelper.write_balanceOf(0x0F82E57804D0B1F6FAb2370A43dcFAd3c7cB239c, me, printed_lp);
-      IERC20(0x0F82E57804D0B1F6FAb2370A43dcFAd3c7cB239c).approve(address(inc_onchain), uint(-1));
-      yamhelper.ff(86400);
-      inc_onchain.stake(printed_lp);
-
-      uint256 lut2 = inc_onchain.lastUpdateTime();
-      assertEq(lut, lut2);
+    function test_double_inc() public {
+        setup_new_gov();
+        /* gov3.addIncentivizer(address(voting_inc)); // should work */
+        /* gov3.addIncentivizer(address(0x6eBF85F830e7D5b3D01Eb64e34A1003223942EAD)); // should fail */
     }
 
-    function test_onchain_prop() public {
+    function test_onchain_bug() public {
+      /* GovernorAlpha gov = GovernorAlpha(timelock.admin());
+      gov.execute(5); */
       assertTrue(false);
       address[] memory targets = new address[](9);
       uint256[] memory values = new uint256[](9);
@@ -91,6 +82,68 @@ contract Prop2 is YAMv3Test {
         description
       );
 
+      uint256 lut = inc_onchain.lastUpdateTime();
+
+      uint256 printed_lp =  990*10**18;
+      yamhelper.write_balanceOf(0x0F82E57804D0B1F6FAb2370A43dcFAd3c7cB239c, me, printed_lp);
+      IERC20(0x0F82E57804D0B1F6FAb2370A43dcFAd3c7cB239c).approve(address(inc_onchain), uint(-1));
+      /* yamhelper.ff(86400); */
+      voting_inc.stake(printed_lp);
+
+      uint256 lut2 = inc_onchain.lastUpdateTime();
+      assertEq(lut, lut2);
+
+      yamV3.balanceOfUnderlying(address(inc_onchain));
+
+      yamhelper.ff(inc_onchain.periodFinish() - block.timestamp);
+      inc_onchain.earned(me);
+
+      inc_onchain.exit();
+      yamV3.balanceOfUnderlying(address(inc_onchain));
+    }
+
+    function test_onchain_prop() public {
+      assertTrue(false);
+      /* address[] memory targets = new address[](9);
+      uint256[] memory values = new uint256[](9);
+      string[] memory signatures = new string[](9);
+      bytes[] memory calldatas = new bytes[](9);
+      string memory description = "Update impl, gov, rebaser, LP, & ETH OTC purchase";
+
+      add_rebaser_to_prop(address(eth_rebaser_onchain), address(r2_onchain), targets, signatures, calldatas);
+      add_gov_to_prop(address(gov3_onchain), targets, signatures, calldatas);
+      add_impl_to_prop(address(impl_onchain), targets, signatures, calldatas);
+      add_LP_to_prop(address(inc_onchain), address(gov3_onchain), targets, signatures, calldatas);
+      add_OTC_to_prop(
+          address(0x97a7E840D05Ec436A2d7FE3b5408f89467174dE6),
+          215518 * 10**18,
+          address(yyCRV),
+          address(WETH),
+          false,
+          targets,
+          signatures,
+          calldatas
+      );
+
+
+
+
+      yamhelper.getQuorum(yamV3, me);
+
+      roll_prop(
+        targets,
+        values,
+        signatures,
+        calldatas,
+        description
+      ); */
+
+      GovernorAlpha gov = GovernorAlpha(timelock.admin());
+      address prev_inc = yamV3.incentivizer();
+
+      uint256 id = gov.latestProposalIds(me);
+      gov.execute(id);
+
       gov3_onchain.__acceptAdmin();
 
       check_rebaser_parity(address(eth_rebaser_onchain), address(rebaser), address(0x0F82E57804D0B1F6FAb2370A43dcFAd3c7cB239c), address(0x397FF1542f962076d0BFE58eA045FfA2d347ACa0));
@@ -108,8 +161,8 @@ contract Prop2 is YAMv3Test {
           true,
           address(0x97a7E840D05Ec436A2d7FE3b5408f89467174dE6)
       );
-      checkLP(address(inc_onchain), prev_inc, address(gov3_onchain), 11242530, 1604995200, 5000 * 10**18);
-/*
+      checkLP(address(inc_onchain), prev_inc, address(gov3_onchain), 11258500, 1605204000, 5000 * 10**18);
+
       yamhelper.ff(inc_onchain.starttime() - block.timestamp);
 
       uint256 printed_lp =  990*10**18;
@@ -134,7 +187,7 @@ contract Prop2 is YAMv3Test {
       // -- initialize twap
       set_two_hop_uni_price(0x0F82E57804D0B1F6FAb2370A43dcFAd3c7cB239c, 0x397FF1542f962076d0BFE58eA045FfA2d347ACa0, address(yamV3), 120 * 10**16);
       yamhelper.ff(12 hours);
-      eth_rebaser_onchain.init_twap();
+      /* eth_rebaser_onchain.init_twap(); */
       yamhelper.ff(12 hours);
       eth_rebaser_onchain.activate_rebasing();
       set_two_hop_uni_price(0x0F82E57804D0B1F6FAb2370A43dcFAd3c7cB239c, 0x397FF1542f962076d0BFE58eA045FfA2d347ACa0, address(yamV3), 120 * 10**16);
@@ -146,14 +199,15 @@ contract Prop2 is YAMv3Test {
       // -- call rebase
       rebase(eth_rebaser_onchain);
 
-      set_two_hop_uni_price(0x0F82E57804D0B1F6FAb2370A43dcFAd3c7cB239c, 0x397FF1542f962076d0BFE58eA045FfA2d347ACa0, address(yamV3), 90 * 10**16);
+      set_two_hop_uni_price(0x0F82E57804D0B1F6FAb2370A43dcFAd3c7cB239c, 0x397FF1542f962076d0BFE58eA045FfA2d347ACa0, address(yamV3), 120 * 10**16);
       ff_rebase();
 
+      set_two_hop_uni_price(0x0F82E57804D0B1F6FAb2370A43dcFAd3c7cB239c, 0x397FF1542f962076d0BFE58eA045FfA2d347ACa0, address(yamV3), 120 * 10**16);
       // -- call rebase
       rebase(eth_rebaser_onchain);
-
+      set_two_hop_uni_price(0x0F82E57804D0B1F6FAb2370A43dcFAd3c7cB239c, 0x397FF1542f962076d0BFE58eA045FfA2d347ACa0, address(yamV3), 120 * 10**16);
       ff_rebase();
-
+      set_two_hop_uni_price(0x0F82E57804D0B1F6FAb2370A43dcFAd3c7cB239c, 0x397FF1542f962076d0BFE58eA045FfA2d347ACa0, address(yamV3), 120 * 10**16);
       // -- call rebase
       rebase(eth_rebaser_onchain);
 
@@ -176,7 +230,7 @@ contract Prop2 is YAMv3Test {
       yamhelper.write_flat(address(inc_onchain), "owner()", address(timelock));
       uint256 sushi_res = IERC20(sushi).balanceOf(address(r2_onchain));
       assertEq(sushi_res, 0);
-      inc_onchain.exit(); */
+      inc_onchain.exit();
     }
 
     function rebase(YAMRebaser2 r) public {
@@ -199,7 +253,7 @@ contract Prop2 is YAMv3Test {
 
     function setup_new_gov() public {
         address[] memory incentivizers = new address[](1);
-        incentivizers[0] = address(0x6eBF85F830e7D5b3D01Eb64e34A1003223942EAD);
+        incentivizers[0] = address(0xD67c05523D8ec1c60760Fd017Ef006b9F6e496D0);
         gov3 = new DualGovernorAlpha(address(timelock), address(yamV3), incentivizers);
     }
 
@@ -288,7 +342,7 @@ contract Prop2 is YAMv3Test {
             true,
             address(0x97a7E840D05Ec436A2d7FE3b5408f89467174dE6)
         );
-        checkLP(address(voting_inc), prev_inc, address(gov3), 11242530, 1604995200, 5000 * 10**18);
+        checkLP(address(voting_inc), prev_inc, address(gov3), 11258500, 1605204000, 5000 * 10**18);
     }
 
     function test_rebaser_update() public {
@@ -342,7 +396,7 @@ contract Prop2 is YAMv3Test {
         incentivizers[0] = address(voting_inc);
         checkGov(address(gov3), incentivizers);
         checkImpl();
-        checkLP(address(voting_inc), prev_inc, address(gov3), 11242000, 1604995200, 5000 * 10**18);
+        checkLP(address(voting_inc), prev_inc, address(gov3), 11258500, 1605204000, 5000 * 10**18);
     }
 
 
@@ -540,6 +594,12 @@ contract Prop2 is YAMv3Test {
         assertEq(inc.minBlockBeforeVoting(), minblock, "inc min block");
         assertEq(address(g.timelock()), address(inc.owner()), "inc admin");
         assertEq(pre_inc.breaker(), true, "didnt shutoff prev inc");
+        assertEq(inc.starttime(), exp_start, "inc !starttime");
+        if (block.timestamp > inc.starttime()) {
+          assertEq(block.timestamp, inc.lastUpdateTime(), "inc !lut");
+        } else {
+          assertEq(inc.starttime(), inc.lastUpdateTime(), "inc !lut");
+        }
         assertEq(inc.starttime(), exp_start, "inc !starttime");
         assertEq(inc.initreward(), init, "inc !init");
         assertEq(yamV3.delegates(address(inc.slp())), address(inc.slp()), "slp !delegate");
@@ -779,6 +839,7 @@ contract Prop2 is YAMv3Test {
 
         assertEq(pre_stake + printed_lp, post_stake);
 
+        assertTrue(false);
         /* uint256 poolPower = yamV3.getCurrentVotes(eth_yam_lp);
         uint256 mePower = yamV3.getCurrentVotes(me); */
         yamhelper.bing(); // increase block number
@@ -789,6 +850,10 @@ contract Prop2 is YAMv3Test {
         assertTrue(IERC20(xsushi).balanceOf(address(voting_inc)) > 0); // got xsushi
         voting_inc.emergencyMasterChefWithdraw();
         voting_inc.exit();
+        voting_inc.stake(IERC20(eth_yam_lp).balanceOf(me));
+        voting_inc.reenableChef();
+        voting_inc.exit();
+        voting_inc.stake(IERC20(eth_yam_lp).balanceOf(me));
     }
 
     function test_FullProp() public {

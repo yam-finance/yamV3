@@ -121,7 +121,7 @@ contract ContribPayout is YAMv3Test {
           description
         );
 
-        /* assertTrue(false); */
+        assertTrue(false);
     }
 
     function test_payout_direct() public {

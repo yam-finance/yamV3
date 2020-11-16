@@ -784,6 +784,7 @@ contract LPTokenWrapper is Ownable {
     function reenableChef() public {
         require(owner() == msg.sender, "!owner");
         require(chefEmergency, "!emergency");
+        masterchef.deposit(pid, slp.balanceOf(address(this)));
         chefEmergency = false;
     }
 
@@ -985,7 +986,7 @@ contract YAMIncentivizerWithVoting is LPTokenWrapper, IRewardDistributionRecipie
     uint256 public constant DURATION = 7 days;
 
     uint256 public initreward = 5000 * 10**18; // 5000 yams
-    uint256 public starttime = 1604995200; // Tuesday, November 10, 2020 8:00:00 GMT
+    uint256 public starttime = 1605204000; //  Thursday, November 12, 2020 18:00:00 GMT
 
     uint256 public periodFinish = 0;
     uint256 public rewardRate = 0;
@@ -1016,7 +1017,7 @@ contract YAMIncentivizerWithVoting is LPTokenWrapper, IRewardDistributionRecipie
     }
 
     function lastTimeRewardApplicable() public view returns (uint256) {
-        return Math.min(block.timestamp, periodFinish);
+        return Math.max(starttime, Math.min(block.timestamp, periodFinish));
     }
 
     function rewardPerToken() public view returns (uint256) {

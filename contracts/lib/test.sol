@@ -18,8 +18,10 @@ contract DSTest {
     event eventListener          (address target, bool exact);
     event logs                   (bytes);
     event log_bytes32            (bytes32);
+    event log_named              (string val);
     event log_named_address      (bytes32 key, address val);
     event log_named_bytes32      (bytes32 key, bytes32 val);
+    event log_named_bool         (bytes32 key, bool val);
     event log_named_decimal_int  (bytes32 key, int val, uint decimals);
     event log_named_decimal_uint (bytes32 key, uint val, uint decimals);
     event log_named_int          (bytes32 key, int val);
@@ -64,6 +66,16 @@ contract DSTest {
         }
     }
 
+    function assertEq(address a, address b, string memory name) internal {
+        if (a != b) {
+            emit log_bytes32("Error: Wrong `address' value");
+            emit log_named(name);
+            emit log_named_address("  Expected", b);
+            emit log_named_address("    Actual", a);
+            fail();
+        }
+    }
+
     function assertEq32(bytes32 a, bytes32 b) internal {
         assertEq(a, b);
     }
@@ -73,6 +85,25 @@ contract DSTest {
             emit log_bytes32("Error: Wrong `bytes32' value");
             emit log_named_bytes32("  Expected", b);
             emit log_named_bytes32("    Actual", a);
+            fail();
+        }
+    }
+
+    function assertEq(bytes32 a, bytes32 b, string memory name) internal {
+        if (a != b) {
+            emit log_bytes32("Error: Wrong `bytes32' value");
+            emit log_named(name);
+            emit log_named_bytes32("  Expected", b);
+            emit log_named_bytes32("    Actual", a);
+            fail();
+        }
+    }
+    function assertEq(bool a, bool b, string memory name) internal {
+        if (a != b) {
+            emit log_bytes32("Error: Wrong `bytes32' value");
+            emit log_named(name);
+            emit log_named_bool("  Expected", b);
+            emit log_named_bool("    Actual", a);
             fail();
         }
     }
@@ -116,6 +147,36 @@ contract DSTest {
     function assertEq(string memory a, string memory b) internal {
         if (keccak256(abi.encodePacked(a)) != keccak256(abi.encodePacked(b))) {
             emit log_bytes32("Error: Wrong `string' value");
+            emit log_named_string("  Expected", b);
+            emit log_named_string("    Actual", a);
+            fail();
+        }
+    }
+
+    function assertEq(int a, int b, string memory name) internal {
+        if (a != b) {
+            emit log_bytes32("Error: Wrong `int' value");
+            emit log_named(name);
+            emit log_named_int("  Expected", b);
+            emit log_named_int("    Actual", a);
+            fail();
+        }
+    }
+
+    function assertEq(uint a, uint b, string memory name) internal {
+        if (a != b) {
+            emit log_bytes32("Error: Wrong `uint' value");
+            emit log_named(name);
+            emit log_named_uint("  Expected", b);
+            emit log_named_uint("    Actual", a);
+            fail();
+        }
+    }
+
+    function assertEq(string memory a, string memory b, string memory name) internal {
+        if (keccak256(abi.encodePacked(a)) != keccak256(abi.encodePacked(b))) {
+            emit log_bytes32("Error: Wrong `string' value");
+            emit log_named(name);
             emit log_named_string("  Expected", b);
             emit log_named_string("    Actual", a);
             fail();

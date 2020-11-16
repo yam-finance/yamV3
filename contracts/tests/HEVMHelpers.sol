@@ -355,7 +355,7 @@ contract YAMHelper is HEVMHelpers {
 
     function write_balanceOf(address who, address acct, uint256 value) public {
         if (who == yamAddr) {
-            writeBalance(YAMDelegator(address(uint160(yamAddr))), acct, YAMDelegator(address(uint160(yamAddr))).fragmentToYam(value));
+            writeBoU(YAMDelegator(address(uint160(yamAddr))), acct, YAMDelegator(address(uint160(yamAddr))).fragmentToYam(value));
         } else {
             uint256 bal = IERC20(who).balanceOf(acct);
             write_map(who, "balanceOf(address)", acct, value);
@@ -392,31 +392,6 @@ contract YAMHelper is HEVMHelpers {
             newTS = yamV3.yamToFragment(newIS);
         } else {
             uint256 posdelta = value - bal;
-            newIS = yamV3.initSupply() + posdelta;
-            newTS = yamV3.yamToFragment(newIS);
-        }
-
-        write_flat(address(yamV3), "initSupply()", newIS);
-        assertEq(yamV3.initSupply(), newIS);
-        write_flat(address(yamV3), "totalSupply()", newTS);
-        assertEq(yamV3.totalSupply(), newTS);
-    }
-
-    function writeBalance(YAMDelegator yamV3, address account, uint256 value) public {
-        uint256 bal = yamV3.balanceOf(account);
-        uint256 bou = yamV3.fragmentToYam(value);
-        write_map(address(yamV3), "balanceOfUnderlying(address)", account, bou);
-        assertEq(yamV3.balanceOfUnderlying(account), bou);
-        write_last_checkpoint(yamV3, account, value);
-
-        uint256 newIS;
-        uint256 newTS;
-        if (bou > value) {
-            uint256 negdelta = bou - value;
-            newIS = yamV3.initSupply() - negdelta;
-            newTS = yamV3.yamToFragment(newIS);
-        } else {
-            uint256 posdelta = value - bou;
             newIS = yamV3.initSupply() + posdelta;
             newTS = yamV3.yamToFragment(newIS);
         }
