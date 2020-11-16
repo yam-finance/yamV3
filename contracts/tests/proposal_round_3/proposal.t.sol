@@ -84,7 +84,7 @@ contract Prop3 is YAMv3Test {
       signatures[5] = "mintUnderlying(address,uint256)";
       calldatas[5] = abi.encode(address(vestingPool),100000 * (10**24));
 
-      // -- Accept gov over monthlyAllowance
+      // -- Accept gov over INDEX staker
       targets[6] = address(index_onchain);
       values[6] = 0;
       signatures[6] = "_acceptGov()";
