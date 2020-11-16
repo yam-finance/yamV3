@@ -5,7 +5,7 @@ import "./TWAPBounded.sol";
 contract ReserveUniHelper is TWAPBound {
 
     event NewReserves(address oldReserves, address NewReserves);
-    
+
     address public reserves;
 
     function _getLPToken()
@@ -27,6 +27,12 @@ contract ReserveUniHelper is TWAPBound {
 
         require(recencyCheck(), "TWAP needs updating");
 
+        uint256 bal_of_a = IERC20(sell_token).balanceOf(reserves);
+        
+        if (amount_ > bal_of_a) {
+            // cap to bal
+            amount_ = bal_of_a;
+        }
 
         (uint256 reserve0, uint256 reserve1, ) = UniswapPair(uniswap_pair1).getReserves();
         uint256 quoted;
@@ -38,9 +44,32 @@ contract ReserveUniHelper is TWAPBound {
             require(withinBoundsWithQuote(quoted), "!in_bounds, uni reserve manipulation");
         }
 
-        uint256 decs = uint256(ExpandedERC20(sell_token).decimals());
-        uint256 one = 10**decs;
-        uint256 amount_b = quoted.mul(amount_).div(one);
+        uint256 amount_b;
+        {
+          uint256 decs = uint256(ExpandedERC20(sell_token).decimals());
+          uint256 one = 10**decs;
+          amount_b = quoted.mul(amount_).div(one);
+        }
+
+
+        uint256 bal_of_b = IERC20(purchase_token).balanceOf(reserves);
+        if (amount_b > bal_of_b) {
+            // we set the limit token as the sale token, but that could change
+            // between proposal and execution.
+            // limit amount_ and amount_b
+            amount_b = bal_of_b;
+
+            // reverse quote
+            if (!saleTokenIs0) {
+                quoted = quote(reserve1, reserve0);
+            } else {
+                quoted = quote(reserve0, reserve1);
+            }
+            // recalculate a
+            uint256 decs = uint256(ExpandedERC20(purchase_token).decimals());
+            uint256 one = 10**decs;
+            amount_ = quoted.mul(amount_b).div(one);
+        }
 
         IERC20(sell_token).transferFrom(reserves, uniswap_pair1, amount_);
         IERC20(purchase_token).transferFrom(reserves, uniswap_pair1, amount_b);
