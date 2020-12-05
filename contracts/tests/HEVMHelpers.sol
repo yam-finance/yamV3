@@ -311,7 +311,7 @@ contract HEVMHelpers is DSTest {
         );
     }
 
-    function bytesToBytes32(bytes memory b, uint offset) private pure returns (bytes32) {
+    function bytesToBytes32(bytes memory b, uint offset) public pure returns (bytes32) {
         bytes32 out;
 
         for (uint i = 0; i < 32; i++) {
