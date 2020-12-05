@@ -221,13 +221,13 @@ contract UmbrellaMetaPool is CoverPricing {
     event CreatorPaid(uint256 amount);
     /// @dev Emitted when withdrawing provided payTokens
     event Withdraw(address indexed provider, uint256 amount);
-    /// @dev Emitted when transfering a token
+    /// @dev Emitted after claiming a protection payout
     event Claim(address indexed holder, uint256 indexed pid, uint256 payout);
-    /// @dev Emitted when transfering a token
+    /// @dev Emitted after claiming premiums
     event ClaimPremiums(address indexed claimer, uint256 premiums_claimed);
-    /// @dev Emitted when transfering a token
+    /// @dev Emitted after a protection's premiums are swept to premium pool
     event Swept(uint256 indexed pid, uint128 premiums_paid);
-    /// @dev Emitted when transfering a token
+    /// @dev Emitted when transfering a protection
     event Transfer(address indexed from, address indexed to, uint256 indexed pid);
     /// @dev Emitted when adding an operator
     event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
@@ -555,8 +555,8 @@ contract UmbrellaMetaPool is CoverPricing {
         // ensure: settling, active, and !expiry
         require(conceptStatuses[protection.conceptIndex] == ConceptStatus.Settling,              "ProtectionPool::claim: !Settling");
         require(                       protection.status == Status.Active,                       "ProtectionPool::claim: !active");
-        require(                       protection.start  <  claimTimes[protection.conceptIndex], "ProtectionPool::claim: !start");
-        require(                      protection.expiry  >= claimTimes[protection.conceptIndex], "ProtectionPool::claim: expired");
+        require(                        protection.start <  claimTimes[protection.conceptIndex], "ProtectionPool::claim: !start");
+        require(                       protection.expiry >= claimTimes[protection.conceptIndex], "ProtectionPool::claim: expired");
 
         protection.status = Status.Claimed;
 
@@ -718,6 +718,10 @@ contract UmbrellaMetaPool is CoverPricing {
                 return;
             }
 
+            totalProtectionSeconds = totalProtectionSeconds.sub(ttsp);
+            providers[msg.sender].totalTokenSecondsProvided = 0;
+            premiumsAccum = premiumsAccum.sub(claimable);
+
             providers[msg.sender].claimed = claimed.add(claimable);
             // payout
             IERC20(payToken).safeTransfer(msg.sender, claimable);
@@ -746,8 +750,7 @@ contract UmbrellaMetaPool is CoverPricing {
     {
         return premiumsAccum
                   .mul(providerTPS)
-                  .div(globalTPS)
-                  .sub(claimed);
+                  .div(globalTPS);
     }
 
     /// @notice Sweep multiple sets of premiums into reserves
@@ -781,8 +784,8 @@ contract UmbrellaMetaPool is CoverPricing {
         Protection storage protection = protections[pid];
         // ensure its expired, the concept isnt settling, and protection is active
         require(conceptStatuses[protection.conceptIndex] != ConceptStatus.Settling, "ProtectionPool::Sweep: Concept Settling");
-        require(                  protection.status == Status.Active,          "ProtectionPool::Sweep: !active");
-        require(                  protection.expiry <  block.timestamp,        "ProtectionPool::Sweep: !expired");
+        require(                       protection.status == Status.Active,          "ProtectionPool::Sweep: !active");
+        require(                       protection.expiry <  block.timestamp,        "ProtectionPool::Sweep: !expired");
 
         // set status to swept
         protection.status = Status.Swept;
@@ -821,7 +824,7 @@ contract UmbrellaMetaPool is CoverPricing {
         public
     {
         // make sure its current in settling mode and settlement mode is finished
-        require(conceptStatuses[conceptIndex] == ConceptStatus.Settling,        "ProtectionPool::enterCooldown: !Settling");
+        require(conceptStatuses[conceptIndex] == ConceptStatus.Settling,                 "ProtectionPool::enterCooldown: !Settling");
         require(uint128(settleStart[conceptIndex]).add(SETTLE_LENGTH) < block.timestamp, "ProtectionPool::enterCooldown: Settling not finished");
 
         // change concept status to cooldown, intialize cooldown timer
@@ -835,8 +838,8 @@ contract UmbrellaMetaPool is CoverPricing {
         public
     {
         // make sure its current in cooldown mode and cooldown mode is finished
-        require(conceptStatuses[conceptIndex] == ConceptStatus.Cooldown, "ProtectionPool::enterCooldown: !Cooldown");
-        require(uint128(cooldownStart[conceptIndex]).add(COOLDOWN_LENGTH) < block.timestamp, "ProtectionPool::enterCooldown: Cooldown not finished");
+        require(                            conceptStatuses[conceptIndex] == ConceptStatus.Cooldown,  "ProtectionPool::enterCooldown: !Cooldown");
+        require(uint128(cooldownStart[conceptIndex]).add(COOLDOWN_LENGTH) <  block.timestamp,         "ProtectionPool::enterCooldown: Cooldown not finished");
 
         // change concept status
         conceptStatuses[conceptIndex] = ConceptStatus.Active;

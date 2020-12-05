@@ -99,6 +99,7 @@ contract YAMv3Test is DSTest {
     address public constant yyCRV = address(0x5dbcF33D8c2E976c6b560249878e6F1491Bca25c);
     address public constant WETH = address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     address public constant DPI = address(0x1494CA1F11D487c2bBe4543E90080AeBa4BA3C2b);
+    address public constant DAI = address(0x6B175474E89094C44Da98b954EedeAC495271d0F);
     // --- other
     address public constant multiSig = address(0x0114ee2238327A1D12c2CeB42921EFe314CBa6E6);
     address public constant gitcoinGrants = address(0xde21F729137C5Af1b01d73aF1dC21eFfa2B8a0d6);
@@ -138,6 +139,22 @@ contract YAMv3Test is DSTest {
     {
         bytes memory calld = abi.encodePacked(helper.sigs(sig), args);
         (bool success, bytes memory ret) = who.call(calld);
+        assertTrue(!success);
+        string memory ret_revert_string = abi.decode(slice(5, ret.length, ret), (string));
+        assertEq(ret_revert_string, revert_string);
+    }
+
+    function expect_revert_with(
+        address who,
+        string memory sig,
+        bytes memory args,
+        uint256 value,
+        string memory revert_string
+    )
+        public
+    {
+        bytes memory calld = abi.encodePacked(helper.sigs(sig), args);
+        (bool success, bytes memory ret) = who.call.value(value)(calld);
         assertTrue(!success);
         string memory ret_revert_string = abi.decode(slice(5, ret.length, ret), (string));
         assertEq(ret_revert_string, revert_string);
