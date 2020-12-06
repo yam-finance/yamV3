@@ -27,11 +27,11 @@ contract CoverageUser {
     function doDetailedBuy(UmbrellaMetaPool pool, uint8 index, uint128 amount, uint256 duration, uint256 maxPay, uint256 deadline) external {
         IERC20(DAI).approve(address(pool), uint(-1));
         pool.buyProtection(
-            0, // dydx
+            index, // dydx
             amount, // 1 pay token
-            86400*14, // 1 week
-            5*amount,
-            block.timestamp
+            uint128(duration), // 1 week
+            uint128(maxPay),
+            deadline
         );
     }
 
@@ -73,7 +73,7 @@ contract Prop3 is YAMv3Test {
 
         uint128 creatorFee_ = 1*10**16;
         uint128 arbiterFee_ = 2*10**16;
-        uint128 rollover_   = 5*10**16;
+        /* uint128 rollover_   = 5*10**16; */
         string[] memory concepts = new string[](3);
         concepts[0] = "dydx";
         concepts[1] = "aave";
@@ -85,7 +85,7 @@ contract Prop3 is YAMv3Test {
             coefs,
             creatorFee_,
             arbiterFee_,
-            rollover_,
+            /* rollover_, */
             1*10**15,
             concepts,
             description,
@@ -102,7 +102,7 @@ contract Prop3 is YAMv3Test {
         emit Coefs(coefs2);
         assertEq(uint256(pool.creatorFee()), uint256(creatorFee_), "Creator Fee");
         assertEq(uint256(pool.arbiterFee()), uint256(arbiterFee_), "Arbiter Fee");
-        assertEq(uint256(pool.rollover()), uint256(rollover_), "rollover");
+        /* assertEq(uint256(pool.rollover()), uint256(rollover_), "rollover"); */
         assertEq(pool.creator(), msg.sender, "creator");
         assertEq(pool.arbiter(), msg.sender, "arbiter");
         assertTrue(pool.arbSet());
@@ -119,7 +119,7 @@ contract Prop3 is YAMv3Test {
 
         uint128 creatorFee_ = 1*10**16;
         uint128 arbiterFee_ = 2*10**16;
-        uint128 rollover_   = 5*10**16;
+        /* uint128 rollover_   = 5*10**16; */
         string[] memory concepts = new string[](3);
         concepts[0] = "dydx";
         concepts[1] = "aave";
@@ -131,7 +131,7 @@ contract Prop3 is YAMv3Test {
             coefs,
             creatorFee_,
             arbiterFee_,
-            rollover_,
+            /* rollover_, */
             1*10**10,
             concepts,
             description,
@@ -148,7 +148,7 @@ contract Prop3 is YAMv3Test {
         emit Coefs(coefs2);
         assertEq(uint256(pool.creatorFee()), uint256(creatorFee_), "Creator Fee");
         assertEq(uint256(pool.arbiterFee()), uint256(arbiterFee_), "Arbiter Fee");
-        assertEq(uint256(pool.rollover()), uint256(rollover_), "rollover");
+        /* assertEq(uint256(pool.rollover()), uint256(rollover_), "rollover"); */
         assertEq(pool.creator(), msg.sender, "creator");
         assertEq(pool.arbiter(), msg.sender, "arbiter");
         assertTrue(pool.arbSet());
@@ -298,46 +298,57 @@ contract Prop3 is YAMv3Test {
         cov_user.doBuy(pool, 10**18);
         UmbrellaMetaPool.Protection memory pro = pool.getProtectionInfo(0);
 
-        assertEq(uint(pro.coverageAmount), 10**18,                     "coverage amount");
+        /* assertEq(uint(pro.coverageAmount), 10**18,                     "coverage amount");
         assertEq(          uint(pro.paid), 3912712519564800,           "coverage payment");
         assertEq(              pro.holder, address(cov_user),          "coverage holder");
         assertEq(         uint(pro.start), block.timestamp,            "coverage start");
         assertEq(        uint(pro.expiry), block.timestamp + 86400*14, "coverage expiry");
         assertEq(  uint(pro.conceptIndex), 0,                          "coverage concept Index");
-        assertTrue(pro.status == UmbrellaMetaPool.Status.Active);
+        assertTrue(pro.status == UmbrellaMetaPool.Status.Active); */
 
-        assertEq(pool.utilized(), uint(pro.coverageAmount), "pool utilized");
+        /* assertEq(pool.utilized(), uint(pro.coverageAmount), "pool utilized"); */
         yamhelper.ff(86400*7 + 1);
-        cov_user.doCover(pool, 50*10**18);
+        cov_user.doCover(pool, 100*10**18);
         yamhelper.ff(86400*7 + 1);
         pool.sweep(0);
+        pool.premiumsAccum();
+        pool.currentTotalTPS();
+        pool.currentProviderTPS(me);
+        pool.currentProviderTPS(address(cov_user));
 
         pro = pool.getProtectionInfo(0);
         address use = address(cov_user);
         assertTrue(pro.status == UmbrellaMetaPool.Status.Swept);
         assertEq(     uint(pool.arbiterFees()), 78254250391296,               "arb fees");
         assertEq(     uint(pool.creatorFees()), 39127125195648,               "creator fees");
-        assertEq(     uint256(pool.reserves()), 195635625978240 + 150*10**18, "reserves + rollover");
+        assertEq(     uint256(pool.reserves()), 200*10**18,        "reserves + rollover");
         assertEq(uint256(pool.premiumsAccum()), 3599695517999616,             "premiumsAccum");
-        assertEq(   pool.claimablePremiums(me), 2879753684718814,             "claimable");
-        assertEq(  pool.currentProviderTPS(me), 120960100000000000000000000,  "TPS");
-        assertEq(  pool.claimablePremiums(use), 719939016366398,              "claimable");
-        assertEq( pool.currentProviderTPS(use), 30240050000000000000000000,   "TPS");
+        assertEq(   pool.claimablePremiums(me), 2399797011999744,             "claimable");
+        assertEq(  pool.currentProviderTPS(me), 120960200000000000000000000,  "TPS");
+        assertEq(  pool.claimablePremiums(use), 1199898505999872,             "claimable");
+        assertEq( pool.currentProviderTPS(use), 60480100000000000000000000,   "TPS");
 
         uint256 bal_pre = IERC20(DAI).balanceOf(me);
         pool.claimPremiums();
         uint256 bal_post = IERC20(DAI).balanceOf(me);
-        assertEq(bal_post, bal_pre + 2879753684718814, "claim");
+        assertEq(bal_post, bal_pre + 2399797011999744, "claim");
 
         cov_user.doBuy(pool, 10**18);
         yamhelper.ff(86400*14 + 1);
         pool.sweep(1);
+        pool.premiumsAccum();
+        pool.currentTotalTPS();
+        pool.currentProviderTPS(me);
+        pool.currentProviderTPS(address(cov_user));
+        pool.claimablePremiums(me);
+        pool.claimablePremiums(address(cov_user));
+        /*
         pro = pool.getProtectionInfo(1);
         assertTrue(pro.status == UmbrellaMetaPool.Status.Swept);
-        assertEq(     uint(pool.arbiterFees()), 155992819054464,              "arb fees");
-        assertEq(     uint(pool.creatorFees()), 77996409527232,               "creator fees");
-        assertEq(     uint256(pool.reserves()), 150000389982047636160,        "reserves + rollover");
-        assertEq(uint256(pool.premiumsAccum()), 7175669676505344,             "premiumsAccum");
+        assertEq(     uint(pool.arbiterFees()), 155735619725952,              "arb fees");
+        assertEq(     uint(pool.creatorFees()), 77867809862976,               "creator fees");
+        assertEq(     uint256(pool.reserves()), 200*10**18,        "reserves + rollover");
+        assertEq(uint256(pool.premiumsAccum()), 7163838507393792,             "premiumsAccum");
         assertEq(   pool.claimablePremiums(me), 2600703670279185,             "claimable");
         assertEq(  pool.currentProviderTPS(me), 2*120960100000000000000000000,  "TPS");
         assertEq(  pool.claimablePremiums(use), 2*719939016366398,            "claimable");
@@ -347,7 +358,7 @@ contract Prop3 is YAMv3Test {
         pool.premiumsAccum();
         pool.totalProtectionSeconds();
         pool.providers(use);
-        pool.providers(me);
+        pool.providers(me); */
     }
 
     function test_ycp_scaled_two_providers() public {
@@ -378,23 +389,27 @@ contract Prop3 is YAMv3Test {
         cov_user.doCover(pool, 500000*10**18);
         yamhelper.ff(86400*7 + 1);
         pool.sweep(0);
-        pro = pool.getProtectionInfo(0);
+        /* pro = pool.getProtectionInfo(0); */
         address use = address(cov_user);
-        assertTrue(pro.status == UmbrellaMetaPool.Status.Swept);
+        pool.premiumsAccum();
+        pool.claimablePremiums(me);
+        pool.claimablePremiums(use);
+
+
+
+        /* assertTrue(pro.status == UmbrellaMetaPool.Status.Swept);
         assertEq(     uint(pool.arbiterFees()), 9286027395724800000,             "arb fees");
         assertEq(     uint(pool.creatorFees()), 4643013697862400000,             "creator fees");
-        assertEq(     uint256(pool.reserves()), 1500023215068489312000000,       "reserves + rollover");
+        assertEq(     uint256(pool.reserves()), 1500000*10**18,       "reserves + rollover");
         assertEq(uint256(pool.premiumsAccum()), 427157260203340800000,           "premiumsAccum");
         assertEq(   pool.claimablePremiums(me), 341722578413122011072,           "claimable");
         assertEq(  pool.currentProviderTPS(me), 1209601000000000000000000000000, "TPS");
         assertEq(  pool.claimablePremiums(use), 85430715230408459243,            "claimable");
         assertEq( pool.currentProviderTPS(use), 302400500000000000000000000000,  "TPS");
-
-
         uint256 bal_pre = IERC20(DAI).balanceOf(me);
         pool.claimPremiums();
         uint256 bal_post = IERC20(DAI).balanceOf(me);
-        assertEq(bal_post, bal_pre + 3599688475726533, "claim");
+        assertEq(bal_post, bal_pre + 3599688475726533, "claim"); */
     }
 
 
@@ -416,6 +431,34 @@ contract Prop3 is YAMv3Test {
         cov_user.doBuy(pool, 10**18);
         yamhelper.ff(86400*7 + 1);
         expect_revert_with(address(pool), "withdraw(uint128)", abi.encode(100*10**18), "ProtectionPool::withdraw: !liquidity");
+    }
+
+
+    function test_ycp_premiums() public {
+        initialize_pool();
+        yamhelper.write_balanceOf(DAI, me, 1000*10**18);
+        yamhelper.write_balanceOf(DAI, address(cov_user), 1000*10**18);
+        IERC20(DAI).approve(address(pool), uint(-1));
+        pool.provideCoverage(100*10**18);
+        cov_user.doCover(pool, 100*10**18);
+        cov_user.doDetailedBuy(pool, 0, 100*10**18, 86400, 500 * 10**18, block.timestamp + 10);
+        yamhelper.ff(86400 + 1);
+        pool.sweep(0);
+        pool.premiumsAccum();
+        pool.claimPremiums();
+        pool.premiumsAccum();
+        pool.currentTotalTPS();
+        pool.currentProviderTPS(address(cov_user));
+        pool.currentProviderTPS(me);
+        cov_user.doDetailedBuy(pool, 0, 100*10**18, 86400, 500 * 10**18, block.timestamp + 10);
+        yamhelper.ff(86400*13);
+        pool.sweep(1);
+        pool.premiumsAccum();
+        pool.currentTotalTPS();
+        pool.currentProviderTPS(address(cov_user));
+        pool.currentProviderTPS(me);
+        pool.claimPremiums();
+        cov_user.doClaimPremiums(pool);
     }
 
 
@@ -549,17 +592,21 @@ contract Prop3 is YAMv3Test {
           5*100*10**18,
           block.timestamp + 10
         );
+        yamhelper.ff(1);
         set_settling();
         uint256 utilized = pool.utilized();
         uint256 reserves = pool.reserves();
         uint256 bal = IERC20(DAI).balanceOf(me);
+        pool.currentTotalTPS();
         pool.claim(0);
+        pool.currentTotalTPS();
         UmbrellaMetaPool.Protection memory pro = pool.getProtectionInfo(0);
         assertTrue(pro.status == UmbrellaMetaPool.Status.Claimed);
         assertEq(pool.utilized(), utilized.sub(pro.coverageAmount), "utilized");
         assertEq(pool.reserves(), reserves.sub(pro.coverageAmount), "reserves");
         assertEq(IERC20(DAI).balanceOf(me), bal.add(pro.coverageAmount).add(pro.paid), "reserves");
         continue_pool();
+        pool.currentTotalTPS();
         pool.provideCoverage(100*10**18);
         cov_user.doBuy(pool, 10**18);
         pool.buyProtection(
