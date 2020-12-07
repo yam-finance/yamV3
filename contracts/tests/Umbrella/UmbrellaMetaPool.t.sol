@@ -42,6 +42,10 @@ contract CoverageUser {
         );
     }
 
+    function doClaim(UmbrellaMetaPool pool, uint256 pid) external {
+        pool.claim(pid);
+    }
+
     function doClaimPremiums(UmbrellaMetaPool pool) external {
         pool.claimPremiums();
     }
@@ -73,7 +77,7 @@ contract Prop3 is YAMv3Test {
 
         uint128 creatorFee_ = 1*10**16;
         uint128 arbiterFee_ = 2*10**16;
-        /* uint128 rollover_   = 5*10**16; */
+        uint128 rollover_   = 5*10**16;
         string[] memory concepts = new string[](3);
         concepts[0] = "dydx";
         concepts[1] = "aave";
@@ -85,7 +89,7 @@ contract Prop3 is YAMv3Test {
             coefs,
             creatorFee_,
             arbiterFee_,
-            /* rollover_, */
+            rollover_,
             1*10**15,
             concepts,
             description,
@@ -102,7 +106,7 @@ contract Prop3 is YAMv3Test {
         emit Coefs(coefs2);
         assertEq(uint256(pool.creatorFee()), uint256(creatorFee_), "Creator Fee");
         assertEq(uint256(pool.arbiterFee()), uint256(arbiterFee_), "Arbiter Fee");
-        /* assertEq(uint256(pool.rollover()), uint256(rollover_), "rollover"); */
+        assertEq(uint256(pool.rollover()), uint256(rollover_), "rollover");
         assertEq(pool.creator(), msg.sender, "creator");
         assertEq(pool.arbiter(), msg.sender, "arbiter");
         assertTrue(pool.arbSet());
@@ -119,7 +123,7 @@ contract Prop3 is YAMv3Test {
 
         uint128 creatorFee_ = 1*10**16;
         uint128 arbiterFee_ = 2*10**16;
-        /* uint128 rollover_   = 5*10**16; */
+        uint128 rollover_   = 5*10**16;
         string[] memory concepts = new string[](3);
         concepts[0] = "dydx";
         concepts[1] = "aave";
@@ -131,7 +135,7 @@ contract Prop3 is YAMv3Test {
             coefs,
             creatorFee_,
             arbiterFee_,
-            /* rollover_, */
+            rollover_,
             1*10**10,
             concepts,
             description,
@@ -148,7 +152,7 @@ contract Prop3 is YAMv3Test {
         emit Coefs(coefs2);
         assertEq(uint256(pool.creatorFee()), uint256(creatorFee_), "Creator Fee");
         assertEq(uint256(pool.arbiterFee()), uint256(arbiterFee_), "Arbiter Fee");
-        /* assertEq(uint256(pool.rollover()), uint256(rollover_), "rollover"); */
+        assertEq(uint256(pool.rollover()), uint256(rollover_), "rollover");
         assertEq(pool.creator(), msg.sender, "creator");
         assertEq(pool.arbiter(), msg.sender, "arbiter");
         assertTrue(pool.arbSet());
@@ -418,7 +422,7 @@ contract Prop3 is YAMv3Test {
         yamhelper.write_balanceOf(DAI, me, 100*10**18);
         IERC20(DAI).approve(address(pool), uint(-1));
         pool.provideCoverage(100*10**18);
-        pool.intiateWithdraw();
+        pool.initiateWithdraw();
         expect_revert_with(address(pool), "withdraw(uint128)", abi.encode(100*10**18), "ProtectionPool::withdraw: locked");
         yamhelper.ff(86400*7 + 1);
         pool.withdraw(100*10**18);
@@ -426,11 +430,20 @@ contract Prop3 is YAMv3Test {
         yamhelper.ff(86400*7 + 1);
         expect_revert_with(address(pool), "withdraw(uint128)", abi.encode(100*10**18), "ProtectionPool::withdraw: expired");
         pool.provideCoverage(100*10**18);
-        pool.intiateWithdraw();
+        pool.initiateWithdraw();
         yamhelper.write_balanceOf(DAI, address(cov_user), 100*10**18);
+        pool.reserves();
         cov_user.doBuy(pool, 10**18);
+        pool.reserves();
         yamhelper.ff(86400*7 + 1);
+        pool.reserves();
         expect_revert_with(address(pool), "withdraw(uint128)", abi.encode(100*10**18), "ProtectionPool::withdraw: !liquidity");
+        pool.reserves();
+        set_settling_with_time(uint32(block.timestamp - 86400));
+        pool.utilized();
+        pool.reserves();
+        cov_user.doClaim(pool, 0);
+        pool.withdrawUnderlying(99*10**18);
     }
 
 
@@ -585,9 +598,10 @@ contract Prop3 is YAMv3Test {
         helper.write_map(DAI, "balanceOf(address)", address(cov_user), 1000000*10**18);
         IERC20(DAI).approve(address(pool), uint(-1));
         pool.provideCoverage(100*10**18);
+        cov_user.doCover(pool, 100*10**18);
         pool.buyProtection(
           0,
-          100*10**18, // 1 pay token
+          199*10**18, // 1 pay token
           86400*14, // 1 week
           5*100*10**18,
           block.timestamp + 10
@@ -607,7 +621,11 @@ contract Prop3 is YAMv3Test {
         assertEq(IERC20(DAI).balanceOf(me), bal.add(pro.coverageAmount).add(pro.paid), "reserves");
         continue_pool();
         pool.currentTotalTPS();
+        assertEq(pool.balanceOfUnderlying(me), 5*10**17, "bal underlying");
+        assertEq(pool.balanceOfUnderlying(address(cov_user)), 5*10**17, "bal underlying");
         pool.provideCoverage(100*10**18);
+        assertEq(pool.balanceOfUnderlying(me), 1005*10**17, "bal underlying2");
+        assertEq(pool.balanceOfUnderlying(address(cov_user)), 5*10**17, "bal underlying2");
         cov_user.doBuy(pool, 10**18);
         pool.buyProtection(
           0,
@@ -674,7 +692,8 @@ contract Prop3 is YAMv3Test {
     }
 
     function set_settling() public {
-      pool._setSettling(0, uint32(block.timestamp));
+      yamhelper.ff(2);
+      pool._setSettling(0, uint32(block.timestamp - 1));
     }
 
     function set_settling_with_time(uint32 time) public {
