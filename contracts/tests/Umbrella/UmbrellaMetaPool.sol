@@ -245,11 +245,21 @@ contract UmbrellaMetaPool is CoverPricing {
 
     modifier updateTokenSecondsProvided(address account) {
       uint256 timestamp = block.timestamp;
-      uint256 newTokenSecondsProvided = (timestamp - providers[account].lastUpdate).mul(providers[account].curTokens);
+      uint256 newTokenSecondsProvided = (timestamp - providers[account].lastUpdate).mul(providers[account].shares);
 
       // update user protection seconds, and last updated
       providers[account].totalTokenSecondsProvided = providers[account].totalTokenSecondsProvided.add(newTokenSecondsProvided);
       providers[account].lastUpdate = safe32(timestamp);
+
+      // increase total protection seconds
+      uint256 newGlobalTokenSecondsProvided = (timestamp - lastUpdatedTPS).mul(reserves);
+      totalProtectionSeconds = totalProtectionSeconds.add(newGlobalTokenSecondsProvided);
+      lastUpdatedTPS = safe32(timestamp);
+      _;
+    }
+
+    modifier updateGlobalTPS() {
+      uint256 timestamp = block.timestamp;
 
       // increase total protection seconds
       uint256 newGlobalTokenSecondsProvided = (timestamp - lastUpdatedTPS).mul(reserves);
@@ -301,6 +311,8 @@ contract UmbrellaMetaPool is CoverPricing {
     uint128 public utilized;
     /// @notice total payToken
     uint128 public reserves;
+    ///@notice Total shares of reserves
+    uint128 public totalShares;
     /// @notice Minimum number of payTokens to open a position
     uint128 public minPay;
     /// @notice Factory used to create this contract
@@ -359,8 +371,8 @@ contract UmbrellaMetaPool is CoverPricing {
 
     struct ProtectionProvider {
       uint256 totalTokenSecondsProvided;
-      uint256 claimed;
-      uint128 curTokens;
+      uint256 premiumIndex;
+      uint128 shares;
       uint32 lastUpdate;
       uint32 lastProvide;
       uint32 withdrawInitiated;
@@ -474,8 +486,28 @@ contract UmbrellaMetaPool is CoverPricing {
         returns (uint256)
     {
         uint256 timestamp = block.timestamp;
-        uint256 newTokenSecondsProvided = (timestamp - providers[who].lastUpdate).mul(providers[who].curTokens);
+        uint256 newTokenSecondsProvided = (timestamp - providers[who].lastUpdate).mul(providers[who].shares);
         return providers[who].totalTokenSecondsProvided.add(newTokenSecondsProvided);
+    }
+
+    /// @notice Current coverage provider total protection seconds
+    function currentTotalTPS()
+        public
+        view
+        returns (uint256)
+    {
+        uint256 timestamp = block.timestamp;
+        uint256 newGlobalTokenSecondsProvided = (timestamp - lastUpdatedTPS).mul(reserves);
+        return totalProtectionSeconds.add(newGlobalTokenSecondsProvided);
+    }
+
+    /// @notice Current coverage provider total protection seconds
+    function currentPrice(uint128 coverageAmount, uint128 duration)
+        public
+        view
+        returns (uint256)
+    {
+        return _price(coverageAmount, duration, utilized, reserves);
     }
 
 
@@ -544,6 +576,7 @@ contract UmbrellaMetaPool is CoverPricing {
 
     function claim(uint256 pid)
         public
+        updateGlobalTPS
     {
         Protection storage protection = protections[pid];
         require(
@@ -634,6 +667,26 @@ contract UmbrellaMetaPool is CoverPricing {
 
     // ============ Provider Functions ===========
 
+    /// @notice Balance of provider in terms of shares
+    function balanceOf(address who)
+        public
+        view
+        returns (uint256)
+    {
+        return providers[who].shares;
+    }
+
+    /// @notice Balance of a provider in terms of payToken
+    function balanceOfUnderlying(address who)
+        public
+        view
+        returns (uint256)
+    {
+        uint256 shares = providers[who].shares;
+        return shares.mul(reserves).div(totalShares);
+    }
+
+    ///@notice Provide coverage - liquidity is locked for at minimum 1 week
     function provideCoverage(
         uint128 amount
     )
@@ -642,28 +695,16 @@ contract UmbrellaMetaPool is CoverPricing {
         updateTokenSecondsProvided(msg.sender)
     {
         require(amount > 0, "ProtectionPool::provideCoverage: amount 0");
-        providers[msg.sender].curTokens = providers[msg.sender].curTokens.add(amount);
-        providers[msg.sender].lastProvide = safe32(block.timestamp);
-        reserves = reserves.add(amount);
-
+        _claimPremiums();
+        enter(amount);
         // TODO delete before mainnet
         /* require(reserves <= MAX_RESERVES, "ProtectionPool::provideCoverage: Max reserves met for alpha"); */
-
         IERC20(payToken).safeTransferFrom(msg.sender, address(this), amount);
         emit ProvideCoverage(msg.sender, amount);
     }
 
-    function balanceOf(address who)
-        public
-        view
-        returns (uint256)
-    {
-        return providers[who].curTokens;
-    }
-
-
     ///@notice initiates a withdraw request
-    function intiateWithdraw()
+    function initiateWithdraw()
         public
     {
         // update withdraw time iff end of grace period or have a superseding lock that ends after grace period
@@ -675,26 +716,74 @@ contract UmbrellaMetaPool is CoverPricing {
         }
     }
 
+    ///@notice Withdraw a specified number of payTokens
+    function withdrawUnderlying(uint128 amount)
+        public
+        updateTokenSecondsProvided(msg.sender)
+    {
+        uint128 asShares = uint128(uint256(amount).mul(totalShares).div(reserves));
+        _withdraw(asShares);
+    }
+
+    ///@notice Withdraw a specified number of shares
     function withdraw(uint128 amount)
         public
         updateTokenSecondsProvided(msg.sender)
+    {
+        _withdraw(amount);
+    }
+
+    function _withdraw(uint128 asShares)
+        internal
     {
         require(        providers[msg.sender].withdrawInitiated + LOCKUP_PERIOD <  block.timestamp, "ProtectionPool::withdraw: locked");
         require(              providers[msg.sender].lastProvide + LOCKUP_PERIOD <  block.timestamp, "ProtectionPool::withdraw: locked2");
         require(providers[msg.sender].withdrawInitiated + WITHDRAW_GRACE_PERIOD >= block.timestamp, "ProtectionPool::withdraw: expired");
 
-
         // get premiums
         _claimPremiums();
 
         // update reserves & balance
-        reserves = reserves.sub(amount);
+        uint128 underlying = exit(asShares);
         require(reserves >= utilized, "ProtectionPool::withdraw: !liquidity");
-        providers[msg.sender].curTokens = providers[msg.sender].curTokens.sub(amount);
-
+        if (providers[msg.sender].shares == 0) {
+            providers[msg.sender].totalTokenSecondsProvided = 0;
+        }
         // payout
-        IERC20(payToken).safeTransfer(msg.sender, amount);
-        emit Withdraw(msg.sender, amount);
+        IERC20(payToken).safeTransfer(msg.sender, underlying);
+        emit Withdraw(msg.sender, underlying);
+    }
+
+    ///@notice Given an amount of payTokens, update balance, shares, and reserves
+    function enter(uint128 underlying)
+        internal
+    {
+        providers[msg.sender].lastProvide = safe32(block.timestamp);
+        uint128 res = reserves;
+        uint128 ts = totalShares;
+        if (ts == 0 || res == 0) {
+            providers[msg.sender].shares = providers[msg.sender].shares.add(underlying);
+            totalShares = totalShares.add(underlying);
+        }  else {
+            uint128 asShares = uint128(uint256(underlying).mul(ts).div(res));
+            providers[msg.sender].shares = providers[msg.sender].shares.add(asShares);
+            totalShares = ts.add(asShares);
+        }
+        reserves = res.add(underlying);
+    }
+
+    ///@notice Given an amount of shares, update balance, shares, and reserves
+    function exit(uint128 asShares)
+        internal
+        returns (uint128)
+    {
+        uint128 res = reserves;
+        uint128 ts = totalShares;
+        providers[msg.sender].shares = providers[msg.sender].shares.sub(asShares);
+        totalShares = ts.sub(asShares);
+        uint128 underlying = uint128(uint256(asShares).mul(res).div(ts));
+        reserves = res.sub(underlying);
+        return underlying;
     }
 
     /// @notice Claim premiums
@@ -710,22 +799,19 @@ contract UmbrellaMetaPool is CoverPricing {
     {
         uint256 ttsp = providers[msg.sender].totalTokenSecondsProvided;
         if (ttsp > 0) {
-            uint256 claimed = providers[msg.sender].claimed;
-
-            uint256 claimable = _claimablePremiums(claimed, ttsp, totalProtectionSeconds);
+            uint256 claimable = _claimablePremiums(providers[msg.sender].premiumIndex, ttsp, totalProtectionSeconds);
 
             if (claimable == 0) {
                 return;
             }
 
-            totalProtectionSeconds = totalProtectionSeconds.sub(ttsp);
-            providers[msg.sender].totalTokenSecondsProvided = 0;
-            premiumsAccum = premiumsAccum.sub(claimable);
+            providers[msg.sender].premiumIndex = premiumsAccum;
 
-            providers[msg.sender].claimed = claimed.add(claimable);
             // payout
             IERC20(payToken).safeTransfer(msg.sender, claimable);
             emit ClaimPremiums(msg.sender, claimable);
+        } else {
+            providers[msg.sender].premiumIndex = premiumsAccum;
         }
     }
 
@@ -736,26 +822,28 @@ contract UmbrellaMetaPool is CoverPricing {
         returns (uint256)
     {
         uint256 timestamp = block.timestamp;
-        uint256 newTokenSecondsProvided = (timestamp - providers[who].lastUpdate).mul(providers[who].curTokens);
+        uint256 newTokenSecondsProvided = (timestamp - providers[who].lastUpdate).mul(providers[who].shares);
         uint256 whoTPS = providers[who].totalTokenSecondsProvided.add(newTokenSecondsProvided);
         uint256 newTTPS = (timestamp - lastUpdatedTPS).mul(reserves);
         uint256 globalTPS = totalProtectionSeconds.add(newTTPS);
-        return _claimablePremiums(providers[who].claimed, whoTPS, globalTPS);
+        return _claimablePremiums(providers[who].premiumIndex, whoTPS, globalTPS);
     }
 
-    function _claimablePremiums(uint256 claimed, uint256 providerTPS, uint256 globalTPS)
+    function _claimablePremiums(uint256 index, uint256 providerTPS, uint256 globalTPS)
         internal
         view
         returns (uint256)
     {
         return premiumsAccum
+                  .sub(index)
                   .mul(providerTPS)
-                  .div(globalTPS);
+                  .div(totalProtectionSeconds);
     }
 
     /// @notice Sweep multiple sets of premiums into reserves
     function sweepPremiums(uint256[] memory pids)
         public
+        updateGlobalTPS
     {
         uint pidsLength = pids.length;
         uint128 totalSweptCoverage;
@@ -771,6 +859,7 @@ contract UmbrellaMetaPool is CoverPricing {
     /// @notice Sweep premium of a protection into reserves
     function sweep(uint256 pid)
         public
+        updateGlobalTPS
     {
         (uint128 coverageAmount, uint128 paid) = _sweep(pid);
         _update(coverageAmount, paid);
@@ -852,6 +941,8 @@ contract UmbrellaMetaPool is CoverPricing {
         public
         onlyArbiter
     {
+        require(conceptIndex < conceptStatuses.length, "ProtectionPool::_setSettling: !index");
+        require(  settleTime < block.timestamp,        "ProtectionPool::_setSettling: !settleTime");
         // change status to settling
         conceptStatuses[conceptIndex] = ConceptStatus.Settling;
 
@@ -860,7 +951,6 @@ contract UmbrellaMetaPool is CoverPricing {
 
         // set claim time
         claimTimes[conceptIndex] = settleTime;
-
     }
 
     ///@notice Arbiter accept arbiter role
