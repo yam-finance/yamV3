@@ -85,7 +85,7 @@ contract YAMv3Test is DSTest {
     YAMRebaser rebaser = YAMRebaser(0x1fB361f274f316d383B94D761832AB68099A7B00); // rebaser contract
     YAMReserves2 reserves = YAMReserves2(0x97990B693835da58A281636296D2Bf02787DEa17);
     Timelock timelock = Timelock(0x8b4f1616751117C38a0f84F9A146cca191ea3EC5); // governance owner
-    GovernorAlpha public governor = GovernorAlpha(0x78BdD33e95ECbcAC16745FB28DB0FFb703344026);
+    GovernorAlpha public governor = GovernorAlpha(0xC32f9b0292965c5dd4A0Ea1abfcC1f5a36d66986);
     OTC public otc_onchain = OTC(0x92ab5CCe7Af1605da2681458aE52a0BEc4eCB74C);
 
     // --- uniswap

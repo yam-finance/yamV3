@@ -8,9 +8,10 @@ interface IndexStaker {
     function getReward() external;
     function exit() external;
     function balanceOf(address) external view returns (uint256);
+    function earned(address account) external view returns (uint256);
 }
 
-contract IndexStaking is ReserveUniHelper {
+contract IndexStaking2 is ReserveUniHelper {
 
     constructor(address pendingGov_, address reserves_) public {
         gov = msg.sender;
