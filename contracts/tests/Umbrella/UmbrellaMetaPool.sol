@@ -8,11 +8,6 @@ import "../../lib/IERC20.sol";
 import "../../lib/SafeERC20.sol";
 
 
-interface ExpandedERC20 {
-  function decimals() external returns (uint8);
-}
-
-
 /**
  * @title CoverRate
  * @author Yam Finance
@@ -351,11 +346,7 @@ contract UmbrellaMetaPool is CoverPricing {
     ConceptStatus[] public conceptStatuses;
 
     /// @notice Claim times for concepts
-    uint32[] public claimTimes;
-    ///@notice Array of settlement start times
-    uint32[] public settleStart;
-    ///@notice Array of cooldown start times
-    uint32[] public cooldownStart;
+    uint32[][] public claimTimes;
 
     // === Token storage ===
     /// @notice allow operators
@@ -366,7 +357,6 @@ contract UmbrellaMetaPool is CoverPricing {
 
     // ============ Structs & Enums ============
     enum Status { Active, Swept, Claimed }
-    enum ConceptStatus { Active, Settling, Cooldown }
 
 
     struct ProtectionProvider {
@@ -426,11 +416,7 @@ contract UmbrellaMetaPool is CoverPricing {
         creator          = creator_;
         arbiter          = arbiter_;
         minPay           = minPay_;
-
-        conceptStatuses = new ConceptStatus[](coveredConcepts_.length);
-        claimTimes      = new uint32[](coveredConcepts_.length);
-        settleStart     = new uint32[](coveredConcepts_.length);
-        cooldownStart   = new uint32[](coveredConcepts_.length);
+        claimTimes       = new uint32[][](coveredConcepts_.length);
 
         if (creator_ == arbiter_) {
             // auto accept if creator is arbiter
@@ -461,14 +447,6 @@ contract UmbrellaMetaPool is CoverPricing {
           }
         }
         require(false, "!concept");
-    }
-
-    function conceptEnterable(uint8 conceptIndex)
-        public
-        view
-        returns (bool)
-    {
-        return conceptStatuses[conceptIndex] == ConceptStatus.Active;
     }
 
     function getProtectionInfo(uint256 pid)
@@ -529,7 +507,6 @@ contract UmbrellaMetaPool is CoverPricing {
         // check deadline
         require(block.timestamp <= deadline,               "ProtectionPool::buyProtection: !deadline");
         require(   conceptIndex <  coveredConcepts.length, "ProtectionPool::buyProtection: !conceptIndex");
-        require(conceptEnterable(conceptIndex),            "ProtectionPool::buyProtection: !conceptEnterable");
 
         // price coverage
         uint128 coverage_price = _price(coverageAmount, duration, utilized, reserves);
@@ -574,6 +551,52 @@ contract UmbrellaMetaPool is CoverPricing {
         emit NewProtection(coveredConcepts[conceptIndex], coverageAmount, safe32(duration), coverage_price);
     }
 
+    function isSettable(uint256 pid)
+        public
+        view
+        returns (bool)
+    {
+        Protection memory protection = protections[pid];
+        if (protection.status != Status.Active) {
+            return false;
+        }
+        return _hasSettlement(protection.concept, protection.start, protection.expiry);
+    }
+
+    function _hasSettlement(uint32 index, uint32 start, uint32 expiry)
+        internal
+        view
+        returns (bool)
+    {
+        uint32[] memory claimTimesForIndex = claimTimes[index];
+        // early return if no claimtimes
+        if (claimTimesForIndex.length == 0) {
+            return false;
+        }
+        // early return if start > all claimtimes
+        if (start > claimTimesForIndex[claimTimesForIndex.length - 1]) {
+            return false;
+        }
+        // early return if expiry before first claimtime
+        if (expiry < claimTimesForIndex[0]) {
+            return false;
+        }
+        for (uint32 i = 0; i < claimTimesForIndex.length; i++) {
+            // continue until start < claimtime
+            if (start > claimTimesForIndex[i]) {
+                continue;
+            }
+
+            // check if expiry > claimtime
+            if (expiry >= claimTimesForIndex[i]) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+    }
+
+
     function claim(uint256 pid)
         public
         updateGlobalTPS
@@ -586,10 +609,8 @@ contract UmbrellaMetaPool is CoverPricing {
         );
 
         // ensure: settling, active, and !expiry
-        require(conceptStatuses[protection.conceptIndex] == ConceptStatus.Settling,              "ProtectionPool::claim: !Settling");
-        require(                       protection.status == Status.Active,                       "ProtectionPool::claim: !active");
-        require(                        protection.start <  claimTimes[protection.conceptIndex], "ProtectionPool::claim: !start");
-        require(                       protection.expiry >= claimTimes[protection.conceptIndex], "ProtectionPool::claim: expired");
+        require(protection.status == Status.Active, "ProtectionPool::claim: !active");
+        require(_hasSettlement(protection.concept, protection.start, protection.expiry), "ProtectionPool::claim: !start");
 
         protection.status = Status.Claimed;
 
@@ -871,10 +892,11 @@ contract UmbrellaMetaPool is CoverPricing {
         returns (uint128, uint128)
     {
         Protection storage protection = protections[pid];
-        // ensure its expired, the concept isnt settling, and protection is active
-        require(conceptStatuses[protection.conceptIndex] != ConceptStatus.Settling, "ProtectionPool::Sweep: Concept Settling");
-        require(                       protection.status == Status.Active,          "ProtectionPool::Sweep: !active");
-        require(                       protection.expiry <  block.timestamp,        "ProtectionPool::Sweep: !expired");
+
+        // we keep a protection unswept until 7 days after expiry to allow arbiter to act
+        require(                       protection.status == Status.Active,                "ProtectionPool::Sweep: !active");
+        require(                   protection.expiry + 86400*7 <  block.timestamp,        "ProtectionPool::Sweep: !expired");
+        require(!_hasSettlement(protection.concept, protection.start, protection.expiry), "ProtectionPool::Sweep: !settlment");
 
         // set status to swept
         protection.status = Status.Swept;
@@ -908,49 +930,26 @@ contract UmbrellaMetaPool is CoverPricing {
         premiumsAccum = premiumsAccum.add(premiumsPaid - arbFees - createFees - rollovers);
     }
 
-    /// @notice Changes a settled market into a cooldown market
-    function enterCooldown(uint8 conceptIndex)
-        public
-    {
-        // make sure its current in settling mode and settlement mode is finished
-        require(conceptStatuses[conceptIndex] == ConceptStatus.Settling,                 "ProtectionPool::enterCooldown: !Settling");
-        require(uint128(settleStart[conceptIndex]).add(SETTLE_LENGTH) < block.timestamp, "ProtectionPool::enterCooldown: Settling not finished");
-
-        // change concept status to cooldown, intialize cooldown timer
-        claimTimes[conceptIndex] = 0;
-        conceptStatuses[conceptIndex] = ConceptStatus.Cooldown;
-        cooldownStart[conceptIndex] = safe32(block.timestamp);
-    }
-
-    /// @notice Changes a cooldowned market into a active market
-    function reactivateConcept(uint8 conceptIndex)
-        public
-    {
-        // make sure its current in cooldown mode and cooldown mode is finished
-        require(                            conceptStatuses[conceptIndex] == ConceptStatus.Cooldown,  "ProtectionPool::enterCooldown: !Cooldown");
-        require(uint128(cooldownStart[conceptIndex]).add(COOLDOWN_LENGTH) <  block.timestamp,         "ProtectionPool::enterCooldown: Cooldown not finished");
-
-        // change concept status
-        conceptStatuses[conceptIndex] = ConceptStatus.Active;
-    }
-
     // ============ Arbiter Functions ============
 
     ///@notice Sets a concept as settling (allowing claims)
-    function _setSettling(uint8 conceptIndex, uint32 settleTime)
+    function _setSettling(uint8 conceptIndex, uint32 settleTime, bool needs_sort)
         public
         onlyArbiter
     {
-        require(conceptIndex < conceptStatuses.length, "ProtectionPool::_setSettling: !index");
+        require(conceptIndex < coveredConcepts.length, "ProtectionPool::_setSettling: !index");
         require(  settleTime < block.timestamp,        "ProtectionPool::_setSettling: !settleTime");
-        // change status to settling
-        conceptStatuses[conceptIndex] = ConceptStatus.Settling;
-
-        // start settle timer
-        settleStart[conceptIndex] = safe32(block.timestamp);
-
-        // set claim time
-        claimTimes[conceptIndex] = settleTime;
+        if (!needs_sort) {
+            // allow out of order if we sort, otherwise revert
+            uint32 last = claimTimes[conceptIndex][claimTimes[conceptIndex].length - 1];
+            require(settleTime > last, "ProtectionPool::_setSettling: !settleTime");
+        }
+        // add a claim time
+        claimTimes[conceptIndex].push(settleTime);
+        if (needs_sort) {
+            uint32 lastIndex = claimTimes[conceptIndex].length - 1;
+            quickSort(claimTimes[conceptIndex], int(0), int(lastIndex));
+        }
     }
 
     ///@notice Arbiter accept arbiter role
@@ -1002,4 +1001,25 @@ contract UmbrellaMetaPool is CoverPricing {
         require(n < 2**32, "Bad safe32 cast");
         return uint32(n);
     }
+
+    function quickSort(uint32[] storage arr, int left, int right) pure {
+        int i = left;
+        int j = right;
+        if (i == j) return;
+        uint32 pivot = arr[uint32(left + (right - left) / 2)];
+        while (i <= j) {
+            while (arr[uint32(i)] < pivot) i++;
+            while (pivot < arr[uint32(j)]) j--;
+            if (i <= j) {
+                (arr[uint32(i)], arr[uint32(j)]) = (arr[uint32(j)], arr[uint32(i)]);
+                i++;
+                j--;
+            }
+        }
+        if (left < j)
+            quickSort(arr, left, j);
+        if (i < right)
+            quickSort(arr, i, right);
+    }
+
 }
