@@ -342,8 +342,6 @@ contract UmbrellaMetaPool is CoverPricing {
     // === Concept status storage ===
     /// @notice Array of protections
     Protection[] public protections;
-    /// @notice State of the concept market status
-    ConceptStatus[] public conceptStatuses;
 
     /// @notice Claim times for concepts
     uint32[][] public claimTimes;
@@ -560,7 +558,7 @@ contract UmbrellaMetaPool is CoverPricing {
         if (protection.status != Status.Active) {
             return false;
         }
-        return _hasSettlement(protection.concept, protection.start, protection.expiry);
+        return _hasSettlement(protection.conceptIndex, protection.start, protection.expiry);
     }
 
     function _hasSettlement(uint32 index, uint32 start, uint32 expiry)
@@ -610,7 +608,7 @@ contract UmbrellaMetaPool is CoverPricing {
 
         // ensure: settling, active, and !expiry
         require(protection.status == Status.Active, "ProtectionPool::claim: !active");
-        require(_hasSettlement(protection.concept, protection.start, protection.expiry), "ProtectionPool::claim: !start");
+        require(_hasSettlement(protection.conceptIndex, protection.start, protection.expiry), "ProtectionPool::claim: !start");
 
         protection.status = Status.Claimed;
 
@@ -896,7 +894,7 @@ contract UmbrellaMetaPool is CoverPricing {
         // we keep a protection unswept until 7 days after expiry to allow arbiter to act
         require(                       protection.status == Status.Active,                "ProtectionPool::Sweep: !active");
         require(                   protection.expiry + 86400*7 <  block.timestamp,        "ProtectionPool::Sweep: !expired");
-        require(!_hasSettlement(protection.concept, protection.start, protection.expiry), "ProtectionPool::Sweep: !settlment");
+        require(!_hasSettlement(protection.conceptIndex, protection.start, protection.expiry), "ProtectionPool::Sweep: !settlment");
 
         // set status to swept
         protection.status = Status.Swept;
@@ -947,7 +945,7 @@ contract UmbrellaMetaPool is CoverPricing {
         // add a claim time
         claimTimes[conceptIndex].push(settleTime);
         if (needs_sort) {
-            uint32 lastIndex = claimTimes[conceptIndex].length - 1;
+            uint256 lastIndex = claimTimes[conceptIndex].length - 1;
             quickSort(claimTimes[conceptIndex], int(0), int(lastIndex));
         }
     }
@@ -1002,7 +1000,7 @@ contract UmbrellaMetaPool is CoverPricing {
         return uint32(n);
     }
 
-    function quickSort(uint32[] storage arr, int left, int right) pure {
+    function quickSort(uint32[] storage arr, int left, int right) internal {
         int i = left;
         int j = right;
         if (i == j) return;
