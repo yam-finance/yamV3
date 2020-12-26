@@ -693,18 +693,18 @@ contract Prop3 is YAMv3Test {
 
     function set_settling() public {
       yamhelper.ff(2);
-      pool._setSettling(0, uint32(block.timestamp - 1));
+      pool._setSettling(0, uint32(block.timestamp - 1), false);
     }
 
     function set_settling_with_time(uint32 time) public {
-      pool._setSettling(0, time);
+      pool._setSettling(0, time, false);
     }
 
     function continue_pool() public {
       yamhelper.ff(86400*14 + 1);
-      pool.enterCooldown(0);
+      /* pool.enterCooldown(0); */
       yamhelper.ff(86400*7 + 1);
-      pool.reactivateConcept(0);
+      /* pool.reactivateConcept(0); */
     }
 
     function bytesToBytes8(bytes memory b) public pure returns (bytes8) {
