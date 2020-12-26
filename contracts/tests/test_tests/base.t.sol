@@ -100,6 +100,7 @@ contract YAMv3Test is DSTest {
     address public constant WETH = address(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     address public constant DPI = address(0x1494CA1F11D487c2bBe4543E90080AeBa4BA3C2b);
     address public constant DAI = address(0x6B175474E89094C44Da98b954EedeAC495271d0F);
+    address public constant USDC = address(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
     // --- other
     address public constant multiSig = address(0x0114ee2238327A1D12c2CeB42921EFe314CBa6E6);
     address public constant gitcoinGrants = address(0xde21F729137C5Af1b01d73aF1dC21eFfa2B8a0d6);
