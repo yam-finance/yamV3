@@ -18,6 +18,8 @@ import "../../lib/UniswapRouterInterface.sol";
 import "../../lib/IUniswapV2Pair.sol";
 import { YAMHelper, HEVMHelpers } from "../HEVMHelpers.sol";
 import { OTC } from "../OTC/OTC.sol";
+import {VestingPool} from "../vesting_pool/VestingPool.sol";
+import {MonthlyAllowance} from "../contributor_monthly_payments/MonthlyAllowance.sol";
 
 interface Hevm {
     function warp(uint) external;
@@ -87,6 +89,8 @@ contract YAMv3Test is DSTest {
     Timelock timelock = Timelock(0x8b4f1616751117C38a0f84F9A146cca191ea3EC5); // governance owner
     GovernorAlpha public governor = GovernorAlpha(0xC32f9b0292965c5dd4A0Ea1abfcC1f5a36d66986);
     OTC public otc_onchain = OTC(0x92ab5CCe7Af1605da2681458aE52a0BEc4eCB74C);
+    VestingPool public vestingPool = VestingPool(0xDCf613db29E4d0B35e7e15e93BF6cc6315eB0b82);
+    MonthlyAllowance public monthlyAllowance = MonthlyAllowance(0x03A882495Bc616D3a1508211312765904Fb062d1);
 
     // --- uniswap
     UniRouter2 uniRouter = UniRouter2(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
