@@ -58,12 +58,18 @@ contract Prop3 is YAMv3Test {
     event E2(bytes);
     event Coefs(uint128[] coefs);
 
+    UmbrellaMetaPool on = UmbrellaMetaPool(0xc92ec84423db017ee76354b786ac9C60beA35379);
     UmbrellaMetaPool pool;
     CoverageUser cov_user;
     function setUp() public {
         setUpCore();
         pool = new UmbrellaMetaPool();
         cov_user = new CoverageUser();
+    }
+
+    function test_on_sweep() public {
+        on.protections(0);
+        on.sweep(0);
     }
 
     function initialize_pool() public {
@@ -267,7 +273,7 @@ contract Prop3 is YAMv3Test {
         assertEq(pool.utilized(), uint(pro.coverageAmount), "pool utilized");
         yamhelper.ff(86400*7);
         cov_user.doCover(pool, 50*10**18);
-        yamhelper.ff(86400*7 + 1);
+        yamhelper.ff(86400*14 + 1);
         pool.sweep(0);
         pro = pool.getProtectionInfo(0);
         address use = address(cov_user);
@@ -645,9 +651,9 @@ contract Prop3 is YAMv3Test {
           address(pool),
           "claim(uint256)",
           abi.encode(2),
-          "ProtectionPool::claim: !Settling"
+          "ProtectionPool::claim: !settlement"
         );
-        yamhelper.ff(86400*14 + 1);
+        yamhelper.ff(86400*21 + 1);
         pool.sweep(2);
         set_settling();
         expect_revert_with(
@@ -670,7 +676,7 @@ contract Prop3 is YAMv3Test {
           address(pool),
           "claim(uint256)",
           abi.encode(3),
-          "ProtectionPool::claim: !start"
+          "ProtectionPool::claim: !settlement"
         );
         continue_pool();
 
@@ -686,7 +692,7 @@ contract Prop3 is YAMv3Test {
           address(pool),
           "claim(uint256)",
           abi.encode(3),
-          "ProtectionPool::claim: expired"
+          "ProtectionPool::claim: !settlement"
         );
         continue_pool();
     }
@@ -697,6 +703,9 @@ contract Prop3 is YAMv3Test {
     }
 
     function set_settling_with_time(uint32 time) public {
+      if (time > block.timestamp) {
+        yamhelper.ff(time + 2);
+      }
       pool._setSettling(0, time, false);
     }
 
