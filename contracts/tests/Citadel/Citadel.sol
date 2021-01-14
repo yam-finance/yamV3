@@ -309,7 +309,7 @@ contract CitadelStorage {
 
     Market[] public markets;
 
-    mapping (address => mapping (uint8 => Par)) accounts;
+    mapping (address => mapping (uint8 => Par)) public accounts;
 
     // Addresses that can control other users accounts
     mapping (address => mapping (address => bool)) operators;
@@ -388,8 +388,32 @@ contract CitadelLogic is CitadelStorage, MultiInterestRate, TWAPPER {
         require(from == msg.sender || from == to, "!deposit source");
         Par memory currPar = accounts[to][marketIndex];
         uint256 deltaPar = _getParFromWei(index, amount, currPar.sign);
-        accounts[to][marketIndex] = add(currPar, deltaPar);
+        Par memory newPar = add(currPar, deltaPar);
+        accounts[to][marketIndex] = newPar;
         IERC20(token).safeTransferFrom(from, address(this), amount);
+        _updateMarket(currPar, newPar, marketIndex);
+    }
+
+    function _updateMarket(
+        Par memory currPar,
+        Par memory newPar,
+        uint8 marketIndex
+    )
+        internal
+    {
+          // roll-back oldPar
+          if (currPar.sign) {
+              markets[marketIndex].reserves = safe128(uint256(markets[marketIndex].reserves).sub(currPar.value));
+          } else {
+              markets[marketIndex].utilized = safe128(uint256(markets[marketIndex].utilized).sub(currPar.value));
+          }
+
+          // roll-forward newPar
+          if (newPar.sign) {
+              markets[marketIndex].reserves = safe128(uint256(markets[marketIndex].reserves).add(newPar.value));
+          } else {
+              markets[marketIndex].utilized = safe128(uint256(markets[marketIndex].utilized).add(newPar.value));
+          }
     }
 
     function _withdraw(
@@ -406,8 +430,10 @@ contract CitadelLogic is CitadelStorage, MultiInterestRate, TWAPPER {
         require(_isOperator(who, msg.sender), "!operator");
         Par memory currPar = accounts[who][marketIndex];
         uint256 deltaPar = _getParFromWei(index, amount, currPar.sign);
-        accounts[who][marketIndex] = sub(currPar, deltaPar);
+        Par memory newPar = sub(currPar, deltaPar);
+        accounts[who][marketIndex] = newPar;
         IERC20(token).safeTransfer(to, amount);
+        _updateMarket(currPar, newPar, marketIndex);
     }
 
     function _call(
@@ -479,11 +505,23 @@ contract CitadelLogic is CitadelStorage, MultiInterestRate, TWAPPER {
         {
             Par memory currPar = accounts[who][marketIndex];
             uint256 deltaPar = _getParFromWei(index, amount, currPar.sign);
+            Par memory newPar = sub(currPar, deltaPar);
+            accounts[who][marketIndex] = newPar;
+            _updateMarket(currPar, newPar, marketIndex);
 
-            accounts[who][marketIndex] = sub(currPar, deltaPar);
-            accounts[to][marketIndex] = add(liqOwedPar, deltaPar);
-            accounts[who][secondaryMarketIndex] = add(accounts[who][secondaryMarketIndex], deltaHeldPar);
-            accounts[to][secondaryMarketIndex] = sub(liqHeldPar, deltaHeldPar);
+            newPar = add(liqOwedPar, deltaPar);
+            accounts[to][marketIndex] = newPar;
+            _updateMarket(liqOwedPar, newPar, marketIndex);
+
+            currPar = accounts[who][secondaryMarketIndex];
+            newPar = add(currPar, deltaHeldPar);
+            accounts[who][secondaryMarketIndex] = newPar;
+            _updateMarket(currPar, newPar, secondaryMarketIndex);
+
+
+            newPar = sub(liqHeldPar, deltaHeldPar);
+            accounts[to][secondaryMarketIndex] = newPar;
+            _updateMarket(liqHeldPar, newPar, secondaryMarketIndex);
         }
     }
 
