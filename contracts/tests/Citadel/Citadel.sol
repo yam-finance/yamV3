@@ -1051,7 +1051,6 @@ contract CitadelLending is CitadelLogic {
             }
         }
 
-        uint128 marginRatio_ = marginRatio;
         for (uint256 i = 0; i < whos.length; i++) {
             if (primaryAccounts[i]) {
                 _checkCollateralization(whos[i], true);
