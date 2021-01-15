@@ -49,7 +49,7 @@ contract UMAFarmingFeb is TWAPBounded2, UniHelper, YamSubGoverned {
             minter.redeem(position.tokensOutstanding);
         } else {
             // We might end up with more debt than we have FEB UGAS. In this case, only redeem MAX(minSponsorTokens, ugasBalance)
-            // The extra debt will need to be handled externally
+            // The extra debt will need to be handled externally, by either waiting until expiry, others sponsoring the debt for later reimbursement, or purchasing the ugas
             minter.redeem(
                 SynthMinter.Unsigned(
                     position.tokensOutstanding.rawValue - ugasBalance <=
@@ -114,7 +114,7 @@ contract UMAFarmingFeb is TWAPBounded2, UniHelper, YamSubGoverned {
     // ========= GOVERNANCE ONLY ACTION APPROVALS =========
     function _approveEnter()
         public
-        onlyGov
+        onlyGovOrSubGov
         {
         completed = false;
         action = ACTION.ENTER;
@@ -122,7 +122,7 @@ contract UMAFarmingFeb is TWAPBounded2, UniHelper, YamSubGoverned {
 
     function _approveExit()
         public
-        onlyGov
+        onlyGovOrSubGov
     {
         completed = false;
         action = ACTION.EXIT;

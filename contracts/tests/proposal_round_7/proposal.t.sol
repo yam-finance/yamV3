@@ -10,7 +10,7 @@ import {SynthMinter} from "../uma_farming/UMAFarmingFeb.sol";
 
 // Prop for December contributor payment and stream setup
 contract Prop7 is YAMv3Test {
-    UMAFarmingFeb umaFarming;
+    UMAFarmingFeb umaFarming = UMAFarmingFeb(0xc0AE1e1e172ECD4C56fD8043FD5Afe5a473E9835);
 
     IERC20 internal constant FEB_UGAS = IERC20(
         0x81fAb276aEC924fBDe190cf379783526D413CF70
@@ -22,7 +22,6 @@ contract Prop7 is YAMv3Test {
 
     function setUp() public {
         setUpCore();
-        umaFarming = new UMAFarmingFeb(address(timelock));
     }
 
     event TEST(
@@ -32,6 +31,59 @@ contract Prop7 is YAMv3Test {
         bytes[] calldatas,
         string description
     );
+
+    function test_created_proposal_7() public {
+        assertTrue(false);
+        uint256 reservesPreWETHBalance = weth.balanceOf(address(reserves));
+
+        // Set votes very high
+        hevm.store(
+            address(governor),
+            bytes32(
+                0x069400f22b28c6c362558d92f66163cec5671cba50b61abd2eecfcd0eaeac521
+            ),
+            bytes32(
+                0x000000000000000000000000000000000000000dd86e9a6e3a129a6d14c5ee21
+            )
+        );
+        hevm.store(
+            address(governor),
+            bytes32(
+                0xefbb981aaa04444b080ebeb97674fcb36c170bb22d042996e6e8204fb6f29376
+            ),
+            bytes32(
+                0x000000000000000000000000000000000000000dd86e9a6e3a129a6d14c5ee21
+            )
+        );
+
+        governor.castVote(6,true);
+        yamhelper.bong(12345);
+
+        governor.queue(6);
+        yamhelper.ff(60 * 60 * 12);
+        governor.execute(6);
+
+        umaFarming.update_twap();
+
+        yamhelper.ff(61 minutes);
+
+        umaFarming.enter();
+        uint256 reservesPostWETHBalance = weth.balanceOf(address(reserves));
+        assertTrue(reservesPostWETHBalance < reservesPreWETHBalance / 50);
+
+        roll_exit_prop();
+
+        umaFarming.update_twap();
+
+        yamhelper.ff(61 minutes);
+
+        umaFarming.exit();
+        reservesPostWETHBalance = weth.balanceOf(address(reserves));
+        assertEq(reservesPostWETHBalance, reservesPreWETHBalance); // This should fail, the exact amount will change
+        uint256 reservesPostUGASBalance = FEB_UGAS.balanceOf(address(reserves));
+        assertEq(reservesPostUGASBalance, 0); // This should fail, the exact amount will change
+
+    }
 
     /**
      * Summary:
