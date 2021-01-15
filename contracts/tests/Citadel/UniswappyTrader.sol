@@ -16,6 +16,7 @@ contract UniswappyTrader {
 
     bytes4 constant SwapExactTokensForTokens = bytes4(0x38ed1739);
     bytes4 constant SwapTokensForExactTokens = bytes4(0x199e81ef);
+    bytes4 constant Skim = bytes4(keccak256("skim(address,address)"));
 
     function citadelCall(address sender, bytes memory data) public {
         (
@@ -59,8 +60,19 @@ contract UniswappyTrader {
               deadline,
               factory
             );
+        } else if (selector == Skim) {
+            skim(to, sender);
         } else {
             require(false, "!supported trade operation");
+        }
+    }
+
+    function skim(address token, address to)
+        public
+    {
+        uint256 bal = IERC20(token).balanceOf(address(this));
+        if (bal > 0){
+            IERC20(token).safeTransfer(to, bal);
         }
     }
 
@@ -75,7 +87,7 @@ contract UniswappyTrader {
         internal
         returns (uint[] memory amounts)
     {
-        amounts = _getAmountsOut(factory, amountIn, path);
+        amounts = getAmountsOut(factory, amountIn, path);
         require(amounts[amounts.length - 1] >= amountOutMin, 'UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT');
         IERC20(path[0]).safeTransfer(
             _getPair(factory, path[0], path[1]), amounts[0]
@@ -91,7 +103,7 @@ contract UniswappyTrader {
         uint256 deadline,
         address factory
     ) internal returns (uint[] memory amounts) {
-        amounts = _getAmountsIn(factory, amountOut, path);
+        amounts = getAmountsIn(factory, amountOut, path);
         require(amounts[0] <= amountInMax, 'UniswapV2Router: EXCESSIVE_INPUT_AMOUNT');
         IERC20(path[0]).safeTransfer(
             _getPair(factory, path[0], path[1]), amounts[0]
@@ -124,7 +136,7 @@ contract UniswappyTrader {
         return UniFactory(factory).getPair(tokenA, tokenB);
     }
 
-    function _getAmountsOut(address factory, uint amountIn, address[] memory path) internal view returns (uint[] memory amounts) {
+    function getAmountsOut(address factory, uint amountIn, address[] memory path) public view returns (uint[] memory amounts) {
         require(path.length >= 2, 'UniswapV2Library: INVALID_PATH');
         amounts = new uint[](path.length);
         amounts[0] = amountIn;
@@ -134,7 +146,7 @@ contract UniswappyTrader {
         }
     }
 
-    function _getAmountsIn(address factory, uint amountOut, address[] memory path) internal view returns (uint[] memory amounts) {
+    function getAmountsIn(address factory, uint amountOut, address[] memory path) public view returns (uint[] memory amounts) {
         require(path.length >= 2, 'UniswapV2Library: INVALID_PATH');
         amounts = new uint[](path.length);
         amounts[amounts.length - 1] = amountOut;

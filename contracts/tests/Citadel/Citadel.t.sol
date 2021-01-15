@@ -9,6 +9,7 @@ import { IERC20 } from "../../lib/IERC20.sol";
 import { WETH9 } from "../../lib/WETH9.sol";
 import { Timelock } from "../../governance/TimeLock.sol";
 import { CitadelLending } from "./Citadel.sol";
+import "./UniswappyTrader.sol";
 
 
 contract CitadelUser {
@@ -30,10 +31,13 @@ contract CitadelTesting is YAMv3Test {
 
     CitadelLending pool;
     CitadelUser user;
+    UniswappyTrader trader;
+
     function setUp() public {
         setUpCore();
         pool = new CitadelLending();
         user = new CitadelUser();
+        trader = new UniswappyTrader();
     }
 
     function setup_pool() public {
@@ -115,6 +119,8 @@ contract CitadelTesting is YAMv3Test {
         yamhelper.write_map(WETH, "balanceOf(address)", address(this), 300*10**18);
         IERC20(WETH).approve(address(pool), uint256(-1));
         pool.deposit(0, 10*10**18);
+        pool.deposit(0, 10*10**18);
+        pool.deposit(0, 10*10**18);
         assertEq(IERC20(WETH).balanceOf(address(pool)), 10*10**18);
     }
 
@@ -122,9 +128,11 @@ contract CitadelTesting is YAMv3Test {
         setup_pool();
         yamhelper.write_map(WETH, "balanceOf(address)", address(this), 300*10**18);
         IERC20(WETH).approve(address(pool), uint256(-1));
-        pool.deposit(0, 10*10**18);
+        pool.deposit(0, 100*10**18);
         assertEq(IERC20(WETH).balanceOf(address(pool)), 10*10**18);
         pool.withdraw(0, 10*10**18);
+        pool.withdraw(0, 10*10**18);
+        pool.withdraw(0, 80*10**18);
         assertEq(IERC20(WETH).balanceOf(address(pool)), 0);
         assertEq(IERC20(WETH).balanceOf(address(this)), 300*10**18);
     }
@@ -135,6 +143,7 @@ contract CitadelTesting is YAMv3Test {
         IERC20(WETH).approve(address(pool), uint256(-1));
         pool.deposit(0, 10*10**18);
         user.doDeposit(yamhelper, pool, 1, 100*10**18);
+        pool.withdraw(1, 10**18);
         pool.withdraw(1, 10**18);
         pool.withdraw(1, 10**18);
 
@@ -239,9 +248,23 @@ contract CitadelTesting is YAMv3Test {
             // For anything needing an amount
             amount: 10**18,
             // For calls/flashloans
-            externalAddress: address(this),
+            externalAddress: address(trader),
             data: ""
         });
+
+        address[] memory path = new address[](2);
+        path[0] = yyCRV;
+        path[1] = WETH;
+        uint256[] memory amounts = trader.getAmountsOut(sushiFact, 10**18, path);
+        bytes memory tradeInfo = abi.encode(
+            bytes4(0x38ed1739), // SwapExactTokensForTokens
+            10**18, // sell borrowed
+            1,
+            path,
+            address(this),
+            block.timestamp + 1,
+            sushiFact
+        );
 
         args[1] = CitadelLending.AnyArg({
             // what operation?
@@ -257,9 +280,17 @@ contract CitadelTesting is YAMv3Test {
             // For anything needing an amount
             amount: 0,
             // For calls/flashloans
-            externalAddress: address(this),
-            data: ""
+            externalAddress: address(trader),
+            data: tradeInfo
         });
+
+        // citadel-memory
+        // 167k deposit,
+        // 82k withdraw
+
+        // citadel
+        // 122k deposit,
+        // 39k withdraw
 
         args[2] = CitadelLending.AnyArg({
             // what operation?
@@ -273,16 +304,21 @@ contract CitadelTesting is YAMv3Test {
             // index of the address list to reference
             toIndex: 0,
             // For anything needing an amount
-            amount: 10**18,
+            amount: 10**18 + amounts[1],
             // For calls/flashloans
             externalAddress: address(this),
             data: ""
         });
 
+
         address[] memory whos = new address[](1);
         whos[0] = address(this);
 
         pool.operate(whos, args);
+        pool.accounts(address(this), 0);
+        pool.accounts(address(this), 1);
+        pool.accounts(address(this), 2);
+        pool.accounts(address(this), 3);
 
         /* assertEq(IERC20(yyCRV).balanceOf(address(this)), 10**18);
         assertEq(IERC20(yyCRV).balanceOf(address(pool)), 0);

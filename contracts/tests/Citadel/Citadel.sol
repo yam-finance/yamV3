@@ -358,15 +358,14 @@ contract CitadelLogic is CitadelStorage, MultiInterestRate, TWAPPER {
     )
         internal
     {
-        Market memory market = markets[marketIndex];
-
-        if (market.index.lastUpdate != safe32(block.timestamp)) {
-            uint128 rate = _getInterestRate(marketIndex, market.utilized, market.reserves);
+        require(marketIndex < markets.length, "!market");
+        if (markets[marketIndex].index.lastUpdate != safe32(block.timestamp)) {
+            uint128 rate = _getInterestRate(marketIndex, markets[marketIndex].utilized, markets[marketIndex].reserves);
             (Index memory newIndex, uint256 withheld) = _calcNewIndex(
                 rate,
-                market.index,
-                market.utilized,
-                market.reserves
+                markets[marketIndex].index,
+                markets[marketIndex].utilized,
+                markets[marketIndex].reserves
             );
             markets[marketIndex].index = newIndex;
             uint256 asInsurance = withheld.mul(insuranceRate).div(BASE);
@@ -564,13 +563,11 @@ contract CitadelLogic is CitadelStorage, MultiInterestRate, TWAPPER {
         for (uint8 j = 0; j < mLen; j++) {
             Par memory acctPar = accounts[who][j];
             if (acctPar.value > 0) {
-                _accrue(j);
-                Market memory market = markets[j];
-                uint256 price = _updateAndConsult(market, j, currTime);
-                uint256 adjust = uint256(BASE).add(market.marginPremium);
+                uint256 price = _updateAndConsult(j, currTime);
+                uint256 adjust = uint256(BASE).add(markets[j].marginPremium);
                 if (acctPar.sign) {
                     uint256 asWei = _getWeiFromPar(
-                       market.index,
+                       markets[j].index,
                        acctPar.value,
                        true
                     );
@@ -581,7 +578,7 @@ contract CitadelLogic is CitadelStorage, MultiInterestRate, TWAPPER {
                     );
                 } else {
                     uint256 asWei = _getWeiFromPar(
-                        market.index,
+                        markets[j].index,
                         acctPar.value,
                         false
                     );
@@ -729,7 +726,6 @@ contract CitadelLogic is CitadelStorage, MultiInterestRate, TWAPPER {
     }
 
     function _updateAndConsult(
-        Market memory market,
         uint8 marketIndex,
         uint32 time
     )
@@ -742,12 +738,12 @@ contract CitadelLogic is CitadelStorage, MultiInterestRate, TWAPPER {
         if (timeElapsed >= period) {
             _update_twap(
                 marketIndex,
-                market.oracle_path,
-                market.isToken0s
+                markets[marketIndex].oracle_path,
+                markets[marketIndex].isToken0s
             );
         }
 
-        return _consult(marketIndex, market.path_ones);
+        return _consult(marketIndex, markets[marketIndex].path_ones);
     }
 
     function add(
@@ -959,11 +955,10 @@ contract CitadelLending is CitadelLogic {
     )
         public
     {
-        Market memory market = markets[marketIndex];
         _update_twap(
             marketIndex,
-            market.oracle_path,
-            market.isToken0s
+            markets[marketIndex].oracle_path,
+            markets[marketIndex].isToken0s
         );
     }
 
@@ -975,8 +970,7 @@ contract CitadelLending is CitadelLogic {
         lock
     {
         _accrue(marketIndex);
-        Market memory market = markets[marketIndex];
-        _deposit(marketIndex, market.token, market.index, amount, msg.sender, msg.sender);
+        _deposit(marketIndex, markets[marketIndex].token, markets[marketIndex].index, amount, msg.sender, msg.sender);
         // a deposit can never undercollateralize an account thus no need to check
     }
 
@@ -989,8 +983,7 @@ contract CitadelLending is CitadelLogic {
         lock
     {
         _accrue(marketIndex);
-        Market memory market = markets[marketIndex];
-        _deposit(marketIndex, market.token, market.index, amount, msg.sender, to);
+        _deposit(marketIndex, markets[marketIndex].token, markets[marketIndex].index, amount, msg.sender, to);
         // a deposit can never undercollateralize an account thus no need to check
     }
 
@@ -1002,8 +995,7 @@ contract CitadelLending is CitadelLogic {
         lock
     {
         _accrue(marketIndex);
-        Market memory market = markets[marketIndex];
-        _withdraw(marketIndex, market.token, market.index, amount, msg.sender, msg.sender);
+        _withdraw(marketIndex, markets[marketIndex].token, markets[marketIndex].index, amount, msg.sender, msg.sender);
         _checkCollateralization(msg.sender, true);
     }
 
@@ -1017,8 +1009,7 @@ contract CitadelLending is CitadelLogic {
         lock
     {
         _accrue(marketIndex);
-        Market memory market = markets[marketIndex];
-        _withdraw(marketIndex, market.token, market.index, amount, who, to);
+        _withdraw(marketIndex, markets[marketIndex].token, markets[marketIndex].index, amount, who, to);
         _checkCollateralization(who, true);
     }
 
@@ -1065,25 +1056,23 @@ contract CitadelLending is CitadelLogic {
 
         for (uint256 i = 0; i < opLen; i++) {
             AnyArg memory op = ops[i];
-            Market memory market = markets[op.marketIndex];
             if (op.op == Op.Call) {
                 _call(op.externalAddress, op.data);
             } else {
                 _accrue(op.marketIndex);
                 if (op.op == Op.Deposit) {
-                    _deposit(op.marketIndex, market.token, market.index, op.amount, op.externalAddress, whos[op.toIndex]);
+                    _deposit(op.marketIndex, markets[op.marketIndex].token, markets[op.marketIndex].index, op.amount, op.externalAddress, whos[op.toIndex]);
                 } else if (op.op == Op.Withdraw) {
                     primaryAccounts[op.fromIndex] = true;
-                    _withdraw(op.marketIndex, market.token, market.index, op.amount, whos[op.fromIndex], op.externalAddress);
+                    _withdraw(op.marketIndex, markets[op.marketIndex].token, markets[op.marketIndex].index, op.amount, whos[op.fromIndex], op.externalAddress);
                 } else {
                     primaryAccounts[op.fromIndex] = true;
                     _accrue(op.secondaryMarketIndex);
-                    Market memory secondMarket = markets[op.secondaryMarketIndex];
                     if (op.op == Op.Liquidate) {
-                      _liquidate(op.marketIndex, op.secondaryMarketIndex, market.index, secondMarket.index, op.amount, whos[op.fromIndex], whos[op.toIndex]);
+                      _liquidate(op.marketIndex, op.secondaryMarketIndex, markets[op.marketIndex].index, markets[op.secondaryMarketIndex].index, op.amount, whos[op.fromIndex], whos[op.toIndex]);
                     } else {
                       require(op.op == Op.Vaporize, "not an op");
-                      _vaporize(market.index, secondMarket.index, op.amount, whos[op.fromIndex], whos[op.toIndex]);
+                      _vaporize(markets[op.marketIndex].index, markets[op.secondaryMarketIndex].index, op.amount, whos[op.fromIndex], whos[op.toIndex]);
                     }
                 }
             }
