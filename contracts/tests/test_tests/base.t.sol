@@ -7,13 +7,12 @@ import "../../lib/SafeMath.sol";
 import "../../lib/SafeERC20.sol";
 import { DSTest } from "../../lib/test.sol";
 import { YAMDelegator } from "../../token/YAMDelegator.sol";
-import { YAMDelegate } from "../../token/YAMDelegate.sol";
+import { YAMDelegate3 } from "../../token/YAMDelegate3.sol";
 import { Migrator } from "../../migrator/Migrator.sol";
-import { YAMRebaser } from "../../rebaser/YAMRebaser.sol";
-import { YAMReserves2 } from "../OTC/YAMReserves2.sol";
-import { GovernorAlpha } from "../../governance/YAMGovernorAlpha.sol";
+import { YAMReserves2 } from "../../reserves/YAMReserves2.sol";
+import { YamGovernorAlpha } from "../../governance/YamGovernorAlpha.sol";
 import { Timelock } from "../../governance/TimeLock.sol";
-import { YAMIncentivizer } from "../../incentivizers/YAMIncentives.sol";
+import { YamIncentivizerWithVoting } from "../../incentivizers/YamIncentivizerWithVoting.sol";
 import "../../lib/UniswapRouterInterface.sol";
 import "../../lib/IUniswapV2Pair.sol";
 import { YAMHelper, HEVMHelpers } from "../HEVMHelpers.sol";
@@ -47,15 +46,15 @@ contract User {
     }
 
     function doStake(YAMHelper yamhelper, address incentivizer, uint256 amount) external {
-        YAMIncentivizer inc = YAMIncentivizer(incentivizer);
-        address lp_token = address(inc.uni_lp());
+        YamIncentivizerWithVoting inc = YamIncentivizerWithVoting(incentivizer);
+        address lp_token = address(inc.slp());
         yamhelper.write_balanceOf(lp_token, address(this), amount);
         IERC20(lp_token).approve(address(inc), uint(-1));
         inc.stake(amount);
     }
 
     function doGetReward(address incentivizer) external {
-        YAMIncentivizer inc = YAMIncentivizer(incentivizer);
+        YamIncentivizerWithVoting inc = YamIncentivizerWithVoting(incentivizer);
         inc.getReward();
     }
 
@@ -84,11 +83,10 @@ contract YAMv3Test is DSTest {
 
     // --- yam ecosystem
     YAMDelegator yamV3 = YAMDelegator(0x0AaCfbeC6a24756c20D41914F2caba817C0d8521);
-    YAMIncentivizer incentivizer = YAMIncentivizer(0x5b0501F7041120d36Bc8c6DC3FAeA0b74b32a0Ed);
-    YAMRebaser rebaser = YAMRebaser(0x1fB361f274f316d383B94D761832AB68099A7B00); // rebaser contract
+    YamIncentivizerWithVoting incentivizer = YamIncentivizerWithVoting(0x5b0501F7041120d36Bc8c6DC3FAeA0b74b32a0Ed);
     YAMReserves2 reserves = YAMReserves2(0x97990B693835da58A281636296D2Bf02787DEa17);
     Timelock timelock = Timelock(0x8b4f1616751117C38a0f84F9A146cca191ea3EC5); // governance owner
-    GovernorAlpha public governor = GovernorAlpha(0xC32f9b0292965c5dd4A0Ea1abfcC1f5a36d66986);
+    YamGovernorAlpha public governor = YamGovernorAlpha(0xC32f9b0292965c5dd4A0Ea1abfcC1f5a36d66986);
     OTC public otc_onchain = OTC(0x92ab5CCe7Af1605da2681458aE52a0BEc4eCB74C);
     VestingPool public vestingPool = VestingPool(0xDCf613db29E4d0B35e7e15e93BF6cc6315eB0b82);
     MonthlyAllowance public monthlyAllowance = MonthlyAllowance(0x03A882495Bc616D3a1508211312765904Fb062d1);
@@ -266,7 +264,7 @@ contract YAMv3Test is DSTest {
 
     function vote_pos_latest() public {
         hevm.roll(block.number + 10);
-        GovernorAlpha curr_gov = GovernorAlpha(timelock.admin());
+        YamGovernorAlpha curr_gov = YamGovernorAlpha(timelock.admin());
         uint256 id = curr_gov.latestProposalIds(me);
         curr_gov.castVote(id, true);
     }
@@ -302,7 +300,7 @@ contract YAMv3Test is DSTest {
     )
         public
     {
-        GovernorAlpha gov = GovernorAlpha(timelock.admin());
+        YamGovernorAlpha gov = YamGovernorAlpha(timelock.admin());
         gov.propose(
             targets,
             values,
@@ -317,8 +315,8 @@ contract YAMv3Test is DSTest {
 
         hevm.roll(block.number +  12345);
 
-        GovernorAlpha.ProposalState state = gov.state(id);
-        assertTrue(state == GovernorAlpha.ProposalState.Succeeded);
+        YamGovernorAlpha.ProposalState state = gov.state(id);
+        assertTrue(state == YamGovernorAlpha.ProposalState.Succeeded);
 
         gov.queue(id);
 
@@ -446,18 +444,7 @@ contract YAMv3Test is DSTest {
         atomicGovCore(has_gov, sigs, ins);
     }
 
-    function ff_rebase() public {
-        YAMRebaser reb = YAMRebaser(yamV3.rebaser());
-        uint256 offset = reb.rebaseWindowOffsetSec();
-        uint256 interval = reb.minRebaseTimeIntervalSec();
-        uint256 waitTime;
-        if (now % interval > offset) {
-          waitTime = (interval - (now % interval)) + offset;
-        } else {
-          waitTime = offset - (now % interval);
-        }
-        hevm.warp(now + waitTime + 1);
-    }
+
 
     function increase_liquidity(address uni_pair, uint256 scale) public {
         UniswapPair pair = UniswapPair(uni_pair);

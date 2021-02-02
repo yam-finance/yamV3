@@ -1,6 +1,6 @@
 pragma solidity 0.5.15;
 
-import "../index_staking/ReserveUniHelper.sol";
+import "../tests/index_staking/ReserveUniHelper.sol";
 
 interface IndexStaker {
     function stake(uint256) external;

@@ -2,7 +2,7 @@ pragma solidity 0.5.15;
 pragma experimental ABIEncoderV2;
 
 import "../test_tests/base.t.sol";
-import { DualGovernorAlpha } from "../proposal_round_2/YAMGovernorAlphaWithLps.sol";
+import { YamGovernorAlpha } from "../../governance/YamGovernorAlpha.sol";
 import { MonthlyAllowance } from "../contributor_monthly_payments/MonthlyAllowance.sol";
 import { VestingPool } from "../vesting_pool/VestingPool.sol";
 import { IERC20 } from "../../lib/IERC20.sol";

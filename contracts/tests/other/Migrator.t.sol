@@ -5,7 +5,7 @@ pragma solidity 0.5.15;
 import "../../lib/SafeMath.sol";
 import {DSTest} from "../../lib/test.sol";
 import {YAMDelegator} from "../../token/YAMDelegator.sol";
-import {YAMDelegate} from "../../token/YAMDelegate.sol";
+import {YAMDelegate3} from "../../token/YAMDelegate3.sol";
 import {Migrator} from "../../migrator/Migrator.sol";
 import "../../lib/UniswapRouterInterface.sol";
 
@@ -53,7 +53,7 @@ contract YAMMigratorTest is DSTest {
 
     YAMv2 yamV2;
 
-    YAMDelegate delegate;
+    YAMDelegate3 delegate;
 
     YAMDelegator yamV3;
 
@@ -68,7 +68,7 @@ contract YAMMigratorTest is DSTest {
         yamV2 = YAMv2(0xAba8cAc6866B83Ae4eec97DD07ED254282f6aD8A);
 
         // Create an implementation
-        delegate = new YAMDelegate();
+        delegate = new YAMDelegate3();
 
         // Create delegator
         yamV3 = new YAMDelegator(

@@ -2,13 +2,13 @@
 
 pragma solidity 0.5.15;
 
-import "../lib/SafeMath.sol";
-import {DSTest} from "../lib/test.sol";
-import {YAMDelegator} from "../token/YAMDelegator.sol";
-import {YAMDelegate} from "../token/YAMDelegate.sol";
-import {YAMIncentivizer} from "./YAMIncentives.sol";
-import "../lib/UniswapRouterInterface.sol";
-import "../lib/SafeERC20.sol";
+import "../../lib/SafeMath.sol";
+import {DSTest} from "../../lib/test.sol";
+import {YAMDelegator} from "../../token/YAMDelegator.sol";
+import {YAMDelegate3} from "../../token/YAMDelegate3.sol";
+import {YamIncentivizerWithVoting} from "../../incentivizers/YamIncentivizerWithVoting.sol";
+import "../../lib/UniswapRouterInterface.sol";
+import "../../lib/SafeERC20.sol";
 
 interface Hevm {
     function warp(uint) external;
@@ -40,11 +40,11 @@ contract YAMMigratorTest is DSTest {
     bytes20 constant CHEAT_CODE =
         bytes20(uint160(uint(keccak256('hevm cheat code'))));
 
-    YAMDelegate delegate;
+    YAMDelegate3 delegate;
 
     YAMDelegator yamV3;
 
-    YAMIncentivizer incentives;
+    YamIncentivizerWithVoting incentives;
 
     address dai = address(0x6B175474E89094C44Da98b954EedeAC495271d0F);
 
@@ -67,7 +67,7 @@ contract YAMMigratorTest is DSTest {
     address me;
 
     function setupIncentivizer() public {
-        incentives = new YAMIncentivizer();
+        incentives = new YamIncentivizerWithVoting();
         incentives.setRewardDistribution(me);
         yamV3._setIncentivizer(address(incentives));
         incentives.notifyRewardAmount(0);
@@ -82,7 +82,7 @@ contract YAMMigratorTest is DSTest {
         yamV2 = YAMv2(0xAba8cAc6866B83Ae4eec97DD07ED254282f6aD8A);
 
         // Create an implementation
-        delegate = new YAMDelegate();
+        delegate = new YAMDelegate3();
 
         // Create delegator
         yamV3 = new YAMDelegator(

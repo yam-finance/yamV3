@@ -5,16 +5,16 @@ pragma experimental ABIEncoderV2;
 
 import "../test_tests/base.t.sol";
 import {VestingPool} from "./VestingPool.sol";
-import {YAMDelegate2} from "../proposal_round_2/YAMDelegate.sol";
+import {YAMDelegate3} from "../../token/YAMDelegate3.sol";
 
 contract VestingPoolTest is YAMv3Test {
     VestingPool vestingPool;
-    YAMDelegate2 yam;
+    YAMDelegate3 yam;
     ProxyContract proxy;
 
     function setUp() public {
         setUpCore();
-        vestingPool = new VestingPool(YAMDelegate2(address(yamV3)));
+        vestingPool = new VestingPool(YAMDelegate3(address(yamV3)));
         proxy = new ProxyContract(address(vestingPool));
         yamhelper.write_balanceOfUnderlying(
             address(yamV3),
@@ -26,13 +26,13 @@ contract VestingPoolTest is YAMv3Test {
             address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE),
             0
         );
-        yam = YAMDelegate2(address(yamV3));
+        yam = YAMDelegate3(address(yamV3));
         // -- get yam governance
         yamhelper.becomeGovernor(address(yamV3), me);
         yamV3._acceptGov();
 
         // -- update implementation
-        yamV3._setImplementation(address(new YAMDelegate2()), false, "");
+        yamV3._setImplementation(address(new YAMDelegate3()), false, "");
     }
 
     //

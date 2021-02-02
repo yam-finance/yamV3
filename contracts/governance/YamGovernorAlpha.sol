@@ -17,9 +17,9 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 // Modified to work in the YAM system
 
 
-import "../../lib/SafeMath.sol";
+import "../lib/SafeMath.sol";
 
-contract DualGovernorAlpha {
+contract YamGovernorAlpha {
     /// @notice The name of this contract
     string public constant name = "YAM Governor Alpha";
 
@@ -152,7 +152,7 @@ contract DualGovernorAlpha {
         timelock = TimelockInterface(timelock_);
         yam = YAMInterface(yam_);
         incentivizers = incentivizers_;
-        guardian = msg.sender;
+        guardian = 0xFF3B0A88054f08B91E0c89eEc9a38817501F599A;
     }
 
     function getIncentivizers()

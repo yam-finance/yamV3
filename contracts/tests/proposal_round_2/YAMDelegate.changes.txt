@@ -1,8 +1,0 @@
-16c16
-< import "./YAMLogic2.sol";
----
-> import "./YAM.sol";
-55c55
-< contract YAMDelegate2 is YAMLogic2, YAMDelegateInterface {
----
-> contract YAMDelegate is YAM, YAMDelegateInterface {

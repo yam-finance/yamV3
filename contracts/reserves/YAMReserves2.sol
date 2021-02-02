@@ -2,9 +2,9 @@
 
 pragma solidity 0.5.15;
 
-import "../../lib/IERC20.sol";
-import "../../lib/SafeERC20.sol";
-import "../../token/YAMTokenInterface.sol";
+import "../lib/IERC20.sol";
+import "../lib/SafeERC20.sol";
+import "../token/YAMTokenInterface.sol";
 
 contract YAMReserves2 {
 

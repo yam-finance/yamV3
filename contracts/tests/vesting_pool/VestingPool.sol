@@ -1,7 +1,7 @@
 pragma solidity 0.5.15;
 
 import "../../lib/SafeERC20.sol";
-import {YAMDelegate2} from "../proposal_round_2/YAMDelegate.sol";
+import {YAMDelegate3} from "../../token/YAMDelegate3.sol";
 
 contract VestingPool {
     using SafeMath for uint256;
@@ -38,7 +38,7 @@ contract VestingPool {
     mapping(uint256 => Stream) public streams;
 
     /// @notice YAM token
-    YAMDelegate2 public yam;
+    YAMDelegate3 public yam;
 
     /**
      * @notice Event emitted when a sub gov is enabled/disabled
@@ -88,7 +88,7 @@ contract VestingPool {
         address newGov
     );
 
-    constructor(YAMDelegate2 _yam)
+    constructor(YAMDelegate3 _yam)
         public
     {
         gov = msg.sender;

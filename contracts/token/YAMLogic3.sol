@@ -3,8 +3,8 @@
 pragma solidity 0.5.15;
 
 /* import "./YAMTokenInterface.sol"; */
-import "../../token/YAMGovernance.sol";
-import "../../lib/SafeERC20.sol";
+import "../token/YAMGovernance.sol";
+import "../lib/SafeERC20.sol";
 
 contract YAMToken is YAMGovernanceToken {
     // Modifiers

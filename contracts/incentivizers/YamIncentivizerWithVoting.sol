@@ -982,7 +982,7 @@ interface YAM {
     function getCurrentVotes(address account) external view returns (uint256);
 }
 
-contract YAMIncentivizerWithVoting is LPTokenWrapper, IRewardDistributionRecipient {
+contract YamIncentivizerWithVoting is LPTokenWrapper, IRewardDistributionRecipient {
     uint256 public constant DURATION = 7 days;
 
     uint256 public initreward = 5000 * 10**18; // 5000 yams

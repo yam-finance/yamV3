@@ -4,9 +4,9 @@ pragma solidity 0.5.15;
 pragma experimental ABIEncoderV2;
 
 import "../test_tests/base.t.sol";
-import { YAMReserves2 } from "./YAMReserves2.sol";
+import { YAMReserves2 } from "../../reserves/YAMReserves2.sol";
 import { OTC } from "./OTC.sol";
-
+import {YamGovernorAlpha} from "../../governance/YamGovernorAlpha.sol";
 
 contract Trader {
     function doTrade(OTC otc, uint256 trader_sell_amount, address trader_seller_token, uint256 expected_amount) public {
@@ -43,7 +43,7 @@ contract OTCProp is YAMv3Test {
     }
 
     function test_execute() public {
-        GovernorAlpha gov = GovernorAlpha(timelock.admin());
+        YamGovernorAlpha gov = YamGovernorAlpha(timelock.admin());
         uint256 id = gov.latestProposalIds(me);
         uint256 pre_bal = IERC20(yyCRV).balanceOf(address(r2_onchain));
         gov.execute(id);
@@ -55,15 +55,15 @@ contract OTCProp is YAMv3Test {
     function test_otc_prop() public {
       yamhelper.getQuorum(yamV3, me);
 
-      GovernorAlpha gov = GovernorAlpha(timelock.admin());
+      YamGovernorAlpha gov = YamGovernorAlpha(timelock.admin());
       uint256 id = gov.latestProposalIds(me);
 
       vote_pos_latest();
 
       hevm.roll(block.number +  12345);
 
-      GovernorAlpha.ProposalState state = gov.state(id);
-      assertTrue(state == GovernorAlpha.ProposalState.Succeeded);
+      YamGovernorAlpha.ProposalState state = gov.state(id);
+      assertTrue(state == YamGovernorAlpha.ProposalState.Succeeded);
 
       gov.queue(id);
 
@@ -223,84 +223,6 @@ contract OTCProp is YAMv3Test {
 
     }
 
-    function test_live() public {
-        assertTrue(false); // force verbose
-        address[] memory targets = new address[](6);
-        uint256[] memory values = new uint256[](6);
-        string[] memory signatures = new string[](6);
-        bytes[] memory calldatas = new bytes[](6);
-        string memory description = "Accept governances, upgrade reserves, DPI otc purchase";
-
-        /// ---- ACCEPT GOVS ---- \\\
-        // -- accept gov otc
-        targets[0] = address(otc_onchain);
-        signatures[0] = "acceptGov()";
-
-        // -- accept gov reserves
-        targets[1] = address(r2_onchain);
-        signatures[1] = "_acceptGov()";
-
-
-        /// ---- UPGRADE RESERVES ---- \\\
-        // -- migrate reserves
-        targets[2] = address(reserves);
-        signatures[2] = "migrateReserves(address,address[])";
-        address[] memory tokens = new address[](1);
-        tokens[0] = yyCRV;
-        calldatas[2] = abi.encode(address(r2_onchain), tokens);
-
-        // -- update reserves in rebaser
-        targets[3] = address(rebaser);
-        signatures[3] = "setReserveContract(address)";
-        calldatas[3] = abi.encode(address(r2_onchain));
-
-
-        /// ---- SETUP OTC ---- \\\
-        targets[4] = address(r2_onchain);
-        signatures[4] = "whitelistWithdrawals(address[],uint256[],address[])";
-        address[] memory whos = new address[](1);
-        uint256[] memory amounts = new uint256[](1);
-        address[] memory token = new address[](1);
-        whos[0] = address(otc_onchain);
-        amounts[0] = 215518*10**18;
-        token[0] = address(yyCRV);
-        calldatas[4] = abi.encode(whos, amounts, token);
-
-        targets[5] = address(otc_onchain);
-        signatures[5] = "setup_sale(address,address,address,uint256,uint256,uint256,address,address,address)";
-        calldatas[5] = abi.encode(
-          address(0x97a7E840D05Ec436A2d7FE3b5408f89467174dE6), // trader
-          address(yyCRV), // sell_token,
-          address(DPI), // purchase_token,
-          uint256(amounts[0]), // sell_amount_,
-          uint256(2 * 60 * 60), // twap_period,
-          uint256(5 * 10**16), // twap_bounds_,
-          address(0x9346C20186D1794101B8517177A1b15c49c9ff9b), // uniswap1,
-          address(0x4d5ef58aAc27d99935E5b6B4A6778ff292059991), // uniswap2, // if two hop
-          address(r2_onchain) // reserve_
-        );
-
-        yamhelper.getQuorum(yamV3, me);
-
-        roll_prop(
-          targets,
-          values,
-          signatures,
-          calldatas,
-          description
-        );
-
-        yamhelper.ff(60*60*2);
-
-        otc_onchain.update_twap();
-
-        otc_onchain.bounds();
-        otc_onchain.quote(3200*10**18, amounts[0]);
-
-        /* yamhelper.write_map(DPI, "balanceOf(address)", address(grapefruit), 3200*10**18); */
-
-        /* grapefruit.doTrade(otc, 3200*10**18, DPI, saleAmount); */
-      }
 
     //
     // TESTS

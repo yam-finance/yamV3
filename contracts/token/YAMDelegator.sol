@@ -3,7 +3,7 @@
 pragma solidity 0.5.15;
 
 import "./YAMTokenInterface.sol";
-import "./YAMDelegate.sol";
+import "./YAMDelegate3.sol";
 
 contract YAMDelegator is YAMTokenInterface, YAMDelegatorInterface {
     /**
