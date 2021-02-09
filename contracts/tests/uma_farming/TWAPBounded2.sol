@@ -15,15 +15,15 @@ contract TWAPBounded2 {
 
     /// @notice Current uniswap pair for purchase & sale tokens
     UniswapPair internal uniswap_pair = UniswapPair(
-        0x4a8A2eA3718964eD0551a3191C30E49EA38A5aDE
+        0x683ea972fFa19b7BaD6d6be0440E0A8465dBA71C
     );
 
     IERC20 internal constant WETH = IERC20(
         0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
     );
 
-    IERC20 internal constant FEB_UGAS = IERC20(
-        0x81fAb276aEC924fBDe190cf379783526D413CF70
+    IERC20 internal constant MAR_UGAS = IERC20(
+        0x4e110603e70B0b5f1c403ee543b37e1F1244Cf28
     );
     
     /// @notice last cumulative price update time

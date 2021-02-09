@@ -86,7 +86,7 @@ contract YAMv3Test is DSTest {
     YamIncentivizerWithVoting incentivizer = YamIncentivizerWithVoting(0x5b0501F7041120d36Bc8c6DC3FAeA0b74b32a0Ed);
     YAMReserves2 reserves = YAMReserves2(0x97990B693835da58A281636296D2Bf02787DEa17);
     Timelock timelock = Timelock(0x8b4f1616751117C38a0f84F9A146cca191ea3EC5); // governance owner
-    YamGovernorAlpha public governor = YamGovernorAlpha(0xC32f9b0292965c5dd4A0Ea1abfcC1f5a36d66986);
+    YamGovernorAlpha public governor = YamGovernorAlpha(0x2DA253835967D6E721C6c077157F9c9742934aeA);
     OTC public otc_onchain = OTC(0x92ab5CCe7Af1605da2681458aE52a0BEc4eCB74C);
     VestingPool public vestingPool = VestingPool(0xDCf613db29E4d0B35e7e15e93BF6cc6315eB0b82);
     MonthlyAllowance public monthlyAllowance = MonthlyAllowance(0x03A882495Bc616D3a1508211312765904Fb062d1);
@@ -104,9 +104,11 @@ contract YAMv3Test is DSTest {
     address public constant DPI = address(0x1494CA1F11D487c2bBe4543E90080AeBa4BA3C2b);
     address public constant DAI = address(0x6B175474E89094C44Da98b954EedeAC495271d0F);
     address public constant USDC = address(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
+    address public constant YAM_HOUSE = address(0xD83dfE003E7c42077186D690DD3D24a0c965ca4e);
 
     // --- weth
     WETH9 weth = WETH9(WETH);
+    
     
     // --- other
     address public constant multiSig = address(0x0114ee2238327A1D12c2CeB42921EFe314CBa6E6);
