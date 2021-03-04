@@ -162,6 +162,7 @@ contract CoverRate {
 contract CoverPricing is CoverRate {
     using SafeMath128 for uint128;
 
+    uint128 public max_duration;
     // ============ Functions ============
 
     /// @notice Price a given
@@ -179,8 +180,8 @@ contract CoverPricing is CoverRate {
         view
         returns (uint128)
     {
-        require(duration <= SECONDS_IN_A_YEAR, "ProtectionPool::_price: duration > max duration");
-        uint128 new_util = utilized.add(coverageAmount);
+        require(duration <= max_duration, "duration > max duration");
+        uint128 new_util = safe128(uint256(utilized).add(coverageAmount));
         uint128 rate = getInterestRate(new_util, reserves);
 
         // price = amount * rate_per_second * duration / 10**18
@@ -247,7 +248,7 @@ contract UmbrellaMetaPool is CoverPricing {
       providers[account].lastUpdate = safe32(timestamp);
 
       // increase total protection seconds
-      uint256 newGlobalTokenSecondsProvided = (timestamp - lastUpdatedTPS).mul(reserves);
+      uint256 newGlobalTokenSecondsProvided = (timestamp - lastUpdatedTPS).mul(totalShares);
       totalProtectionSeconds = totalProtectionSeconds.add(newGlobalTokenSecondsProvided);
       lastUpdatedTPS = safe32(timestamp);
       _;
@@ -257,7 +258,7 @@ contract UmbrellaMetaPool is CoverPricing {
       uint256 timestamp = block.timestamp;
 
       // increase total protection seconds
-      uint256 newGlobalTokenSecondsProvided = (timestamp - lastUpdatedTPS).mul(reserves);
+      uint256 newGlobalTokenSecondsProvided = (timestamp - lastUpdatedTPS).mul(totalShares);
       totalProtectionSeconds = totalProtectionSeconds.add(newGlobalTokenSecondsProvided);
       lastUpdatedTPS = safe32(timestamp);
       _;
@@ -267,11 +268,9 @@ contract UmbrellaMetaPool is CoverPricing {
 
     // TODO: Move to factory
     /// @notice Max arbiter fee, 10%.
-    uint128 public constant MAX_ARB_FEE = 10**17;
+    /*uint128 public constant MAX_ARB_FEE = 10**17;
     /// @notice Max creator fee, 5%.
-    uint128 public constant MAX_CREATE_FEE = 5*10**16;
-    /// @notice ALPHA USE ONLY, PLACES CAP ON TVL
-    uint128 public constant MAX_RESERVES = 1000 * 10**18;
+    uint128 public constant MAX_CREATE_FEE = 5*10**16; */
     // :TODO
 
     /// @notice How long a pool is settleable for, afterword enters cooldown
@@ -281,9 +280,9 @@ contract UmbrellaMetaPool is CoverPricing {
 
 
     /// @notice How long liquidity is locked up (7 days)
-    uint128 public constant LOCKUP_PERIOD = 60 * 60 * 24 * 7;
+    uint128 public lockupPeriod;
     /// @notice How long a withdrawl request is valid for (2 weeks)
-    uint128 public constant WITHDRAW_GRACE_PERIOD = 60 * 60 * 24 * 14;
+    uint128 public withdrawGracePeriod;
 
     /// @notice WETH address
     WETH9 public constant WETH = WETH9(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
@@ -297,9 +296,9 @@ contract UmbrellaMetaPool is CoverPricing {
 
     // === Pool storage ===
     /// @notice List of protected concepts, i.e. ["Dydx", "Compound", "Aave"]
-    string[] public coveredConcepts;
+    string[] private coveredConcepts;
     /// @notice Description of the pool; i.e. yEarn yVaults
-    string public description;
+    string private description;
     /// @notice Token used for protection payment and payout
     address public payToken;
     /// @notice utilized payToken
@@ -321,19 +320,19 @@ contract UmbrellaMetaPool is CoverPricing {
 
     // === Creator storage ===
     /// @notice Creator fee
-    uint128 public creatorFee;
+    uint128 private creatorFee;
     /// @notice Accumulated Creator Fee
-    uint128 public creatorFees;
+    uint128 private creatorFees;
     /// @notice Address that is the creator of the pool
-    address public creator;
+    address private creator;
 
     // === Arbiter storage ===
     /// @notice Arbiter Fee
-    uint128 public arbiterFee;
+    uint128 private arbiterFee;
     /// @notice Accumulated Arbiter Fee
-    uint128 public arbiterFees;
+    uint128 private arbiterFees;
     /// @notice Address that is the arbiter over the pool
-    address public arbiter;
+    address private arbiter;
 
     // === Rollover storage ===
     /// @notice % of premiums rolled into provided coverage
@@ -357,9 +356,15 @@ contract UmbrellaMetaPool is CoverPricing {
     enum Status { Active, Swept, Claimed }
 
 
+    struct LastClaim {
+        uint256 lastGlobalTPS;
+        uint256 lastPTPS;
+    }
+
     struct ProtectionProvider {
       uint256 totalTokenSecondsProvided;
       uint256 premiumIndex;
+      LastClaim lastClaim;
       uint128 shares;
       uint32 lastUpdate;
       uint32 lastProvide;
@@ -378,15 +383,39 @@ contract UmbrellaMetaPool is CoverPricing {
         Status status;
     }
 
+    struct PoolInfo {
+      string[] concepts;
+      string description;
+    }
+
+    struct CreatorInfo {
+        uint128 creatorFeePerc;
+        uint128 creatorFeesAvailable;
+        address creatorAddr;
+    }
+
+    struct ArbiterInfo {
+        uint128 arbiterFeePerc;
+        uint128 arbiterFeesAvailable;
+        address arbiterAddr;
+    }
+
+    struct Fees {
+        uint128 creatorFee;
+        uint128 arbiterFee;
+        uint128 rollover;
+    }
+
     // ============ Constructor ============
 
     function initialize(
         address payToken_,
         uint64 coefficients,
-        uint128 creatorFee_,
-        uint128 arbiterFee_,
-        uint128 rollover_,
+        uint128 maxDuration_,
+        Fees memory fees,
         uint128 minPay_,
+        uint128 lockupPeriod_,
+        uint128 withdrawGracePeriod_,
         string[] memory coveredConcepts_,
         string memory description_,
         address creator_,
@@ -397,6 +426,7 @@ contract UmbrellaMetaPool is CoverPricing {
         require(!initialized, "initialized");
         initialized = true;
         require(coveredConcepts_.length < 16, "too many concepts");
+        require(uint256(fees.creatorFee).add(fees.arbiterFee).add(fees.rollover) <= BASE, "fees > 100%");
 
         // TODO: Move to factory
         require(arbiterFee_ <= MAX_ARB_FEE, "!arb fee");
@@ -405,16 +435,19 @@ contract UmbrellaMetaPool is CoverPricing {
 
         intialize_rate(coefficients);
 
-        payToken         = payToken_;
-        arbiterFee       = arbiterFee_;
-        creatorFee       = creatorFee_;
-        rollover         = rollover_;
-        coveredConcepts  = coveredConcepts_;
-        description      = description_;
-        creator          = creator_;
-        arbiter          = arbiter_;
-        minPay           = minPay_;
-        claimTimes       = new uint32[][](coveredConcepts_.length);
+        payToken            = payToken_;
+        max_duration        = maxDuration_;
+        arbiterFee          = fees.arbiterFee;
+        creatorFee          = fees.creatorFee;
+        rollover            = fees.rollover;
+        coveredConcepts     = coveredConcepts_;
+        description         = description_;
+        creator             = creator_;
+        arbiter             = arbiter_;
+        minPay              = minPay_;
+        lockupPeriod        = lockupPeriod_;
+        withdrawGracePeriod = withdrawGracePeriod_;
+        claimTimes          = new uint32[][](coveredConcepts_.length);
 
         if (creator_ == arbiter_) {
             // auto accept if creator is arbiter
@@ -424,6 +457,41 @@ contract UmbrellaMetaPool is CoverPricing {
     }
 
     // ============ View Functions ============
+
+    function getPoolInfo()
+        public
+        view
+        returns (PoolInfo memory)
+    {
+        return PoolInfo({
+          concepts: coveredConcepts,
+          description: description
+        });
+    }
+
+    function getCreatorInfo()
+        public
+        view
+        returns (CreatorInfo memory)
+    {
+        return CreatorInfo({
+          creatorFeePerc: creatorFee,
+          creatorFeesAvailable: creatorFees,
+          creatorAddr: creator
+        });
+    }
+
+    function getArbiterInfo()
+        public
+        view
+        returns (ArbiterInfo memory)
+    {
+        return ArbiterInfo({
+          arbiterFeePerc: arbiterFee,
+          arbiterFeesAvailable: arbiterFees,
+          arbiterAddr: arbiter
+        });
+    }
 
     function getConcepts()
         public
@@ -473,7 +541,7 @@ contract UmbrellaMetaPool is CoverPricing {
         returns (uint256)
     {
         uint256 timestamp = block.timestamp;
-        uint256 newGlobalTokenSecondsProvided = (timestamp - lastUpdatedTPS).mul(reserves);
+        uint256 newGlobalTokenSecondsProvided = (timestamp - lastUpdatedTPS).mul(totalShares);
         return totalProtectionSeconds.add(newGlobalTokenSecondsProvided);
     }
 
@@ -594,7 +662,6 @@ contract UmbrellaMetaPool is CoverPricing {
         }
     }
 
-
     function claim(uint256 pid)
         public
         updateGlobalTPS
@@ -622,68 +689,6 @@ contract UmbrellaMetaPool is CoverPricing {
         emit Claim(protection.holder, pid, payout);
     }
 
-    /// @notice Nonstandard transfer method because erc721 is a dumb standard
-    function transfer(address who, uint256 pid)
-        public
-    {
-        Protection storage protection = protections[pid];
-        require(protection.holder == msg.sender,      "ProtectionPool::transfer: !protection owner");
-        require(protection.expiry >= block.timestamp, "ProtectionPool::transfer: expired");
-        require(protection.status == Status.Active,   "ProtectionPool::transfer: !active");
-        require(              who != address(0),      "ProtectionPool::transfer: cannot burn protection");
-        protection.holder = who;
-        emit Transfer(msg.sender, who, pid);
-    }
-
-    // ERC721 kind of compliance. A lot of the standard is stupid so we dont implement all of it
-    function setApprovalForAll(
-        address operator,
-        bool approved
-    )
-        public
-    {
-      operators[msg.sender][operator] = approved;
-      emit ApprovalForAll(msg.sender, operator, approved);
-    }
-
-    function safeTransferFrom(address from, address to, uint256 pid, bytes memory data)
-        public
-    {
-        _safeTransferFrom(from, to, pid, data);
-    }
-
-    function safeTransferFrom(address from, address to, uint256 pid)
-        public
-    {
-        _safeTransferFrom(from, to, pid, "");
-    }
-
-    function _safeTransferFrom(address from, address to, uint256 pid, bytes memory data)
-        internal
-    {
-        require(
-            from == msg.sender
-            || operators[from][msg.sender] == true,
-            "ProtectionPool::safeTransferFrom: !operator"
-        );
-
-        Protection storage protection = protections[pid];
-        require(protection.holder == from,            "ProtectionPool::safeTransferFrom: from != holder");
-        require(protection.expiry >= block.timestamp, "ProtectionPool::safeTransferFrom: expired");
-        require(protection.status == Status.Active,   "ProtectionPool::safeTransferFrom: !active");
-        require(               to != address(0),      "ProtectionPool::safeTransferFrom: cannot burn protection");
-
-        protection.holder = to;
-        emit Transfer(from, to, pid);
-
-        // erc721 callback. dont check if contract, just if they provided data
-        if (data.length > 0) {
-            ERC721TokenReceiver(to).onERC721Received(msg.sender, from, pid, data);
-            // no check for return because thats dumb. this callback is in case
-            // an app expects it. if the contract doesnt, tough cookies, glhf
-        }
-    }
-
     // ============ Provider Functions ===========
 
     /// @notice Balance of provider in terms of shares
@@ -705,6 +710,21 @@ contract UmbrellaMetaPool is CoverPricing {
         return shares.mul(reserves).div(totalShares);
     }
 
+
+    function provideCoverage()
+        public
+        payable
+        hasArbiter
+    {
+        require(payToken == address(WETH), "paytoken!WETH");
+        uint128 amount = uint128(msg.value);
+        WETH.deposit.value(amount)();
+        updateTokenSecondsProvided(msg.sender);
+        require(amount > 0, "provide:amount 0");
+        _claimPremiums();
+        enter(amount);
+        emit ProvideCoverage(msg.sender, amount);
+    }
     ///@notice Provide coverage - liquidity is locked for at minimum 1 week
     function provideCoverage(
         uint128 amount
@@ -716,8 +736,6 @@ contract UmbrellaMetaPool is CoverPricing {
         require(amount > 0, "ProtectionPool::provideCoverage: amount 0");
         _claimPremiums();
         enter(amount);
-        // TODO delete before mainnet
-        /* require(reserves <= MAX_RESERVES, "ProtectionPool::provideCoverage: Max reserves met for alpha"); */
         IERC20(payToken).safeTransferFrom(msg.sender, address(this), amount);
         emit ProvideCoverage(msg.sender, amount);
     }
@@ -727,9 +745,10 @@ contract UmbrellaMetaPool is CoverPricing {
         public
     {
         // update withdraw time iff end of grace period or have a superseding lock that ends after grace period
+        uint128 wgp = withdrawGracePeriod;
         if (
-          block.timestamp > providers[msg.sender].withdrawInitiated + WITHDRAW_GRACE_PERIOD
-          || providers[msg.sender].lastProvide + LOCKUP_PERIOD > providers[msg.sender].withdrawInitiated + WITHDRAW_GRACE_PERIOD
+          block.timestamp > providers[msg.sender].withdrawInitiated + wgp
+          || providers[msg.sender].lastProvide + lockupPeriod > providers[msg.sender].withdrawInitiated + wgp
         ) {
             providers[msg.sender].withdrawInitiated = safe32(block.timestamp);
         }
@@ -755,19 +774,17 @@ contract UmbrellaMetaPool is CoverPricing {
     function _withdraw(uint128 asShares)
         internal
     {
-        require(        providers[msg.sender].withdrawInitiated + LOCKUP_PERIOD <  block.timestamp, "ProtectionPool::withdraw: locked");
-        require(              providers[msg.sender].lastProvide + LOCKUP_PERIOD <  block.timestamp, "ProtectionPool::withdraw: locked2");
-        require(providers[msg.sender].withdrawInitiated + WITHDRAW_GRACE_PERIOD >= block.timestamp, "ProtectionPool::withdraw: expired");
+        uint128 lp = lockupPeriod;
+        require(                 providers[msg.sender].withdrawInitiated + lp <  block.timestamp, "withdraw:locked");
+        require(                       providers[msg.sender].lastProvide + lp <  block.timestamp, "withdraw:locked2");
+        require(providers[msg.sender].withdrawInitiated + withdrawGracePeriod >= block.timestamp, "withdraw:expired");
 
         // get premiums
         _claimPremiums();
 
         // update reserves & balance
         uint128 underlying = exit(asShares);
-        require(reserves >= utilized, "ProtectionPool::withdraw: !liquidity");
-        if (providers[msg.sender].shares == 0) {
-            providers[msg.sender].totalTokenSecondsProvided = 0;
-        }
+        require(reserves >= utilized, "withdraw:!liquidity");
         // payout
         IERC20(payToken).safeTransfer(msg.sender, underlying);
         emit Withdraw(msg.sender, underlying);
@@ -818,19 +835,30 @@ contract UmbrellaMetaPool is CoverPricing {
     {
         uint256 ttsp = providers[msg.sender].totalTokenSecondsProvided;
         if (ttsp > 0) {
-            uint256 claimable = _claimablePremiums(providers[msg.sender].premiumIndex, ttsp, totalProtectionSeconds);
+            LastClaim memory lastClaim = providers[msg.sender].lastClaim;
+            if (ttsp > lastClaim.lastPTPS) {
+              uint256 globalTPS = totalProtectionSeconds;
+              uint256 claimable = _claimablePremiums(providers[msg.sender].premiumIndex, ttsp, globalTPS, lastClaim);
 
-            if (claimable == 0) {
-                return;
+              if (claimable == 0) {
+                  return;
+              }
+
+              providers[msg.sender].premiumIndex = premiumsAccum;
+              providers[msg.sender].lastClaim = LastClaim({
+                lastPTPS: ttsp,
+                lastGlobalTPS: globalTPS
+              });
+              // payout
+              IERC20(payToken).safeTransfer(msg.sender, claimable);
+              emit ClaimPremiums(msg.sender, claimable);
             }
-
-            providers[msg.sender].premiumIndex = premiumsAccum;
-
-            // payout
-            IERC20(payToken).safeTransfer(msg.sender, claimable);
-            emit ClaimPremiums(msg.sender, claimable);
         } else {
             providers[msg.sender].premiumIndex = premiumsAccum;
+            providers[msg.sender].lastClaim = LastClaim({
+              lastPTPS: ttsp,
+              lastGlobalTPS: totalProtectionSeconds
+            });
         }
     }
 
@@ -843,20 +871,27 @@ contract UmbrellaMetaPool is CoverPricing {
         uint256 timestamp = block.timestamp;
         uint256 newTokenSecondsProvided = (timestamp - providers[who].lastUpdate).mul(providers[who].shares);
         uint256 whoTPS = providers[who].totalTokenSecondsProvided.add(newTokenSecondsProvided);
-        uint256 newTTPS = (timestamp - lastUpdatedTPS).mul(reserves);
+        uint256 newTTPS = (timestamp - lastUpdatedTPS).mul(totalShares);
         uint256 globalTPS = totalProtectionSeconds.add(newTTPS);
-        return _claimablePremiums(providers[who].premiumIndex, whoTPS, globalTPS);
+        LastClaim memory lastClaim = providers[who].lastClaim;
+        if (whoTPS.sub(lastClaim.lastPTPS) == 0 || premiumsAccum.sub(providers[who].premiumIndex) == 0) {
+            return 0;
+        }
+        return _claimablePremiums(providers[who].premiumIndex, whoTPS, globalTPS, lastClaim);
     }
 
-    function _claimablePremiums(uint256 index, uint256 providerTPS, uint256 globalTPS)
+    function _claimablePremiums(uint256 index, uint256 providerTPS, uint256 globalTPS, LastClaim memory lastClaim)
         internal
         view
         returns (uint256)
     {
+        //                    ΔproviderTPS
+        //  ΔpremiumsAccum * --------------- = claimable
+        //                    ΔglobalTPS
         return premiumsAccum
                   .sub(index)
-                  .mul(providerTPS)
-                  .div(totalProtectionSeconds);
+                  .mul(providerTPS.sub(lastClaim.lastPTPS))
+                  .div(globalTPS.sub(lastClaim.lastGlobalTPS));
     }
 
     /// @notice Sweep multiple sets of premiums into reserves
@@ -892,9 +927,9 @@ contract UmbrellaMetaPool is CoverPricing {
         Protection storage protection = protections[pid];
 
         // we keep a protection unswept until 7 days after expiry to allow arbiter to act
-        require(                       protection.status == Status.Active,                "ProtectionPool::Sweep: !active");
-        require(                   protection.expiry + 86400*7 <  block.timestamp,        "ProtectionPool::Sweep: !expired");
-        require(!_hasSettlement(protection.conceptIndex, protection.start, protection.expiry), "ProtectionPool::Sweep: !settlment");
+        require(                       protection.status == Status.Active,                "Sweep:!active");
+        require(             protection.expiry + 86400*7 <  block.timestamp,              "Sweep:!expired");
+        require(!_hasSettlement(protection.conceptIndex, protection.start, protection.expiry), "Sweep:!settlment");
 
         // set status to swept
         protection.status = Status.Swept;
@@ -935,16 +970,19 @@ contract UmbrellaMetaPool is CoverPricing {
         public
         onlyArbiter
     {
-        require(conceptIndex < coveredConcepts.length, "ProtectionPool::_setSettling: !index");
-        require(  settleTime < block.timestamp,        "ProtectionPool::_setSettling: !settleTime");
-        if (!needs_sort) {
+        require(conceptIndex < coveredConcepts.length, "setSettling:!index");
+        require(  settleTime < block.timestamp,        "setSettling:!settleTime");
+        uint256 claimsLength = claimTimes[conceptIndex].length;
+        if (!needs_sort && claimsLength > 0) {
             // allow out of order if we sort, otherwise revert
             uint32 last = claimTimes[conceptIndex][claimTimes[conceptIndex].length - 1];
             require(settleTime > last, "ProtectionPool::_setSettling: !settleTime");
         }
         // add a claim time
         claimTimes[conceptIndex].push(settleTime);
-        if (needs_sort) {
+
+        if (needs_sort && claimsLength > 0) {
+            // if length is 0, we cannot sort so skip this branch
             uint256 lastIndex = claimTimes[conceptIndex].length - 1;
             quickSort(claimTimes[conceptIndex], int(0), int(lastIndex));
         }
