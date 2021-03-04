@@ -285,7 +285,7 @@ contract Prop3 is YAMv3Test {
         assertEq(pool.utilized(), uint(pro.coverageAmount), "pool utilized");
         yamhelper.ff(86400*7);
         cov_user.doCover(pool, 50*10**18);
-        yamhelper.ff(86400*7 + 1);
+        yamhelper.ff(86400*7 + 86400*7 + 1);
         pool.sweep(0);
         pro = pool.getProtectionInfo(0);
         address use = address(cov_user);
@@ -669,7 +669,7 @@ contract Prop3 is YAMv3Test {
           abi.encode(2),
           "claim:!settlement"
         );
-        yamhelper.ff(86400*14 + 1);
+        yamhelper.ff(86400*14 + 86400*7 + 1);
         pool.sweep(2);
         set_settling();
         expect_revert_with(
@@ -702,13 +702,6 @@ contract Prop3 is YAMv3Test {
           86400, // 1 week
           5*100*10**18,
           block.timestamp + 10
-        );
-        set_settling_with_time(uint32(block.timestamp + 86401));
-        expect_revert_with(
-          address(pool),
-          "claim(uint256)",
-          abi.encode(3),
-          "claim:!settlement"
         );
         continue_pool();
     }

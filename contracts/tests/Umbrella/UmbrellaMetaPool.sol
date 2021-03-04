@@ -7,7 +7,28 @@ import { WETH9 } from "../../lib/WETH9.sol";
 import "../../lib/IERC20.sol";
 import "../../lib/SafeERC20.sol";
 
+contract SafeCast {
 
+    uint256 constant two128 = 2**128;
+    uint256 constant two32 = 2**32;
+    function safe32(uint256 n)
+        internal
+        pure
+        returns (uint32)
+    {
+        require(n < two32, "safe32");
+        return uint32(n);
+    }
+
+    function safe128(uint256 n)
+        internal
+        pure
+        returns (uint128)
+    {
+        require(n < two128, "safe128");
+        return uint128(n);
+    }
+}
 /**
  * @title CoverRate
  * @author Yam Finance
@@ -16,7 +37,7 @@ import "../../lib/SafeERC20.sol";
  * Interest = C_0 + C_1 * U^(2^0) + C_2 * U^(2^1) + C_3 * U^(2^2) ... C_8 * U^(2^7)
  * i.e.: coefs = [0, 20, 10, 60, 0, 10] = 0 + 20 * util^0 + 10 * util^2 +
  */
-contract CoverRate {
+contract CoverRate is SafeCast {
     using SafeMath for uint256;
     using SafeMath128 for uint128;
 
@@ -223,10 +244,6 @@ contract UmbrellaMetaPool is CoverPricing {
     event ClaimPremiums(address indexed claimer, uint256 premiums_claimed);
     /// @dev Emitted after a protection's premiums are swept to premium pool
     event Swept(uint256 indexed pid, uint128 premiums_paid);
-    /// @dev Emitted when transfering a protection
-    event Transfer(address indexed from, address indexed to, uint256 indexed pid);
-    /// @dev Emitted when adding an operator
-    event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
     // ============ Modifiers ============
 
     modifier hasArbiter() {
@@ -239,7 +256,16 @@ contract UmbrellaMetaPool is CoverPricing {
         _;
     }
 
-    modifier updateTokenSecondsProvided(address account) {
+    function updateGlobalTPS() internal {
+      uint256 timestamp = block.timestamp;
+
+      // increase total protection seconds
+      uint256 newGlobalTokenSecondsProvided = (timestamp - lastUpdatedTPS).mul(totalShares);
+      totalProtectionSeconds = totalProtectionSeconds.add(newGlobalTokenSecondsProvided);
+      lastUpdatedTPS = safe32(timestamp);
+    }
+
+    function updateTokenSecondsProvided(address account) internal {
       uint256 timestamp = block.timestamp;
       uint256 newTokenSecondsProvided = (timestamp - providers[account].lastUpdate).mul(providers[account].shares);
 
@@ -251,17 +277,6 @@ contract UmbrellaMetaPool is CoverPricing {
       uint256 newGlobalTokenSecondsProvided = (timestamp - lastUpdatedTPS).mul(totalShares);
       totalProtectionSeconds = totalProtectionSeconds.add(newGlobalTokenSecondsProvided);
       lastUpdatedTPS = safe32(timestamp);
-      _;
-    }
-
-    modifier updateGlobalTPS() {
-      uint256 timestamp = block.timestamp;
-
-      // increase total protection seconds
-      uint256 newGlobalTokenSecondsProvided = (timestamp - lastUpdatedTPS).mul(totalShares);
-      totalProtectionSeconds = totalProtectionSeconds.add(newGlobalTokenSecondsProvided);
-      lastUpdatedTPS = safe32(timestamp);
-      _;
     }
 
     // ============ Constants ============
@@ -272,12 +287,6 @@ contract UmbrellaMetaPool is CoverPricing {
     /// @notice Max creator fee, 5%.
     uint128 public constant MAX_CREATE_FEE = 5*10**16; */
     // :TODO
-
-    /// @notice How long a pool is settleable for, afterword enters cooldown
-    uint128 public constant SETTLE_LENGTH = 60 * 60 * 24 * 14;
-    /// @notice How long a pool is in cooldown for, after a settlement. Unclaimed protection becomes sweepable
-    uint128 public constant COOLDOWN_LENGTH = 60 * 60 * 24 * 7;
-
 
     /// @notice How long liquidity is locked up (7 days)
     uint128 public lockupPeriod;
@@ -345,10 +354,8 @@ contract UmbrellaMetaPool is CoverPricing {
     /// @notice Claim times for concepts
     uint32[][] public claimTimes;
 
-    // === Token storage ===
-    /// @notice allow operators
-    mapping ( address => mapping ( address => bool )) public operators;
-
+    ///@notice Protections mapping
+    mapping ( address => uint256[] ) public protectionsForAddress;
     ///@notice Provider mapping
     mapping ( address => ProtectionProvider ) public providers;
 
@@ -425,12 +432,12 @@ contract UmbrellaMetaPool is CoverPricing {
     {
         require(!initialized, "initialized");
         initialized = true;
-        require(coveredConcepts_.length < 16, "too many concepts");
-        require(uint256(fees.creatorFee).add(fees.arbiterFee).add(fees.rollover) <= BASE, "fees > 100%");
 
         // TODO: Move to factory
-        require(arbiterFee_ <= MAX_ARB_FEE, "!arb fee");
-        require(creatorFee_ <= MAX_CREATE_FEE, "!create fee");
+        /* require(coveredConcepts_.length < 16, "too many concepts");
+        require(uint256(fees.creatorFee).add(fees.arbiterFee).add(fees.rollover) <= BASE, "fees > 100%"); */
+        /* require(arbiterFee_ <= MAX_ARB_FEE, "!arb fee"); */
+        /* require(creatorFee_ <= MAX_CREATE_FEE, "!create fee"); */
         // :TODO
 
         intialize_rate(coefficients);
@@ -571,17 +578,15 @@ contract UmbrellaMetaPool is CoverPricing {
         hasArbiter
     {
         // check deadline
-        require(block.timestamp <= deadline,               "ProtectionPool::buyProtection: !deadline");
-        require(   conceptIndex <  coveredConcepts.length, "ProtectionPool::buyProtection: !conceptIndex");
+        require(block.timestamp <= deadline,               "buy:!deadline");
+        require(   conceptIndex <  coveredConcepts.length, "buy:!conceptIndex");
 
         // price coverage
         uint128 coverage_price = _price(coverageAmount, duration, utilized, reserves);
 
         // check payment
-        require(utilized.add(coverageAmount) <= reserves, "ProtectionPool::buyProtection: overutilized");
-        require(              coverage_price >= minPay,   "ProtectionPool::buyProtection: price < minPay");
-        require(              coverage_price <= maxPay,   "ProtectionPool::buyProtection: too expensive");
-
+        require(uint256(utilized).add(coverageAmount) <= reserves, "buy: overutilized");
+        require(coverage_price >= minPay && coverage_price <= maxPay, "buy:!pay");
         // push protection onto array
         // protection buying stops in year 2106 due to safe cast
         protections.push(
@@ -596,12 +601,14 @@ contract UmbrellaMetaPool is CoverPricing {
           })
         );
 
+        protectionsForAddress[msg.sender].push(protections.length - 1);
+
         // increase utilized
         utilized = utilized.add(coverageAmount);
 
         if (payToken == address(WETH) && msg.value > 0) {
             // wrap eth => WETH if necessary
-            uint256 remainder = msg.value.sub(coverage_price, "ProtectionPool::buyProtection: underpayment");
+            uint256 remainder = msg.value.sub(coverage_price, "buy:underpayment");
             WETH.deposit.value(coverage_price)();
 
             // send back excess, 2300 gas
@@ -609,7 +616,7 @@ contract UmbrellaMetaPool is CoverPricing {
                 msg.sender.transfer(remainder);
             }
         } else {
-            require(msg.value == 0, "ProtectionPool::buyProtection: payToken !WETH, dont send eth");
+            require(msg.value == 0, "buy:!WETH");
             IERC20(payToken).safeTransferFrom(msg.sender, address(this), coverage_price);
         }
 
@@ -664,18 +671,17 @@ contract UmbrellaMetaPool is CoverPricing {
 
     function claim(uint256 pid)
         public
-        updateGlobalTPS
     {
+        updateGlobalTPS();
         Protection storage protection = protections[pid];
         require(
-            protection.holder == msg.sender
-            || operators[protection.holder][msg.sender] == true,
-            "ProtectionPool::claim: !operator"
+            protection.holder == msg.sender,
+            "claim:!owner"
         );
 
         // ensure: settling, active, and !expiry
-        require(protection.status == Status.Active, "ProtectionPool::claim: !active");
-        require(_hasSettlement(protection.conceptIndex, protection.start, protection.expiry), "ProtectionPool::claim: !start");
+        require(protection.status == Status.Active, "claim:!active");
+        require(_hasSettlement(protection.conceptIndex, protection.start, protection.expiry), "claim:!settlement");
 
         protection.status = Status.Claimed;
 
@@ -718,9 +724,9 @@ contract UmbrellaMetaPool is CoverPricing {
     {
         require(payToken == address(WETH), "paytoken!WETH");
         uint128 amount = uint128(msg.value);
+        require(amount > 0, "provide:amount 0");
         WETH.deposit.value(amount)();
         updateTokenSecondsProvided(msg.sender);
-        require(amount > 0, "provide:amount 0");
         _claimPremiums();
         enter(amount);
         emit ProvideCoverage(msg.sender, amount);
@@ -731,9 +737,9 @@ contract UmbrellaMetaPool is CoverPricing {
     )
         public
         hasArbiter
-        updateTokenSecondsProvided(msg.sender)
     {
-        require(amount > 0, "ProtectionPool::provideCoverage: amount 0");
+        updateTokenSecondsProvided(msg.sender);
+        require(amount > 0, "provide:amount 0");
         _claimPremiums();
         enter(amount);
         IERC20(payToken).safeTransferFrom(msg.sender, address(this), amount);
@@ -757,8 +763,8 @@ contract UmbrellaMetaPool is CoverPricing {
     ///@notice Withdraw a specified number of payTokens
     function withdrawUnderlying(uint128 amount)
         public
-        updateTokenSecondsProvided(msg.sender)
     {
+        updateTokenSecondsProvided(msg.sender);
         uint128 asShares = uint128(uint256(amount).mul(totalShares).div(reserves));
         _withdraw(asShares);
     }
@@ -766,8 +772,8 @@ contract UmbrellaMetaPool is CoverPricing {
     ///@notice Withdraw a specified number of shares
     function withdraw(uint128 amount)
         public
-        updateTokenSecondsProvided(msg.sender)
     {
+        updateTokenSecondsProvided(msg.sender);
         _withdraw(amount);
     }
 
@@ -798,14 +804,15 @@ contract UmbrellaMetaPool is CoverPricing {
         uint128 res = reserves;
         uint128 ts = totalShares;
         if (ts == 0 || res == 0) {
-            providers[msg.sender].shares = providers[msg.sender].shares.add(underlying);
+            providers[msg.sender].shares = safe128(uint256(providers[msg.sender].shares).add(underlying));
             totalShares = totalShares.add(underlying);
         }  else {
-            uint128 asShares = uint128(uint256(underlying).mul(ts).div(res));
-            providers[msg.sender].shares = providers[msg.sender].shares.add(asShares);
-            totalShares = ts.add(asShares);
+            uint128 asShares = safe128(uint256(underlying).mul(ts).div(res));
+            providers[msg.sender].shares = safe128(uint256(providers[msg.sender].shares).add(asShares));
+            totalShares = safe128(uint256(ts).add(asShares));
         }
-        reserves = res.add(underlying);
+
+        reserves = safe128(uint256(res).add(underlying));
     }
 
     ///@notice Given an amount of shares, update balance, shares, and reserves
@@ -815,9 +822,9 @@ contract UmbrellaMetaPool is CoverPricing {
     {
         uint128 res = reserves;
         uint128 ts = totalShares;
-        providers[msg.sender].shares = providers[msg.sender].shares.sub(asShares);
+        providers[msg.sender].shares = uint128(uint256(providers[msg.sender].shares).sub(asShares));
         totalShares = ts.sub(asShares);
-        uint128 underlying = uint128(uint256(asShares).mul(res).div(ts));
+        uint128 underlying = safe128(uint256(asShares).mul(res).div(ts));
         reserves = res.sub(underlying);
         return underlying;
     }
@@ -825,8 +832,8 @@ contract UmbrellaMetaPool is CoverPricing {
     /// @notice Claim premiums
     function claimPremiums()
         public
-        updateTokenSecondsProvided(msg.sender)
     {
+        updateTokenSecondsProvided(msg.sender);
         _claimPremiums();
     }
 
@@ -837,21 +844,29 @@ contract UmbrellaMetaPool is CoverPricing {
         if (ttsp > 0) {
             LastClaim memory lastClaim = providers[msg.sender].lastClaim;
             if (ttsp > lastClaim.lastPTPS) {
-              uint256 globalTPS = totalProtectionSeconds;
-              uint256 claimable = _claimablePremiums(providers[msg.sender].premiumIndex, ttsp, globalTPS, lastClaim);
+                uint256 globalTPS = totalProtectionSeconds;
+                uint256 claimable = _claimablePremiums(providers[msg.sender].premiumIndex, ttsp, globalTPS, lastClaim);
 
-              if (claimable == 0) {
-                  return;
-              }
+                if (claimable == 0) {
+                    // this means thats premiums accum has not increased,
+                    // so exit early
+                    return;
+                }
 
-              providers[msg.sender].premiumIndex = premiumsAccum;
-              providers[msg.sender].lastClaim = LastClaim({
-                lastPTPS: ttsp,
-                lastGlobalTPS: globalTPS
-              });
-              // payout
-              IERC20(payToken).safeTransfer(msg.sender, claimable);
-              emit ClaimPremiums(msg.sender, claimable);
+                providers[msg.sender].premiumIndex = premiumsAccum;
+                providers[msg.sender].lastClaim = LastClaim({
+                  lastPTPS: ttsp,
+                  lastGlobalTPS: globalTPS
+                });
+                // payout
+                IERC20(payToken).safeTransfer(msg.sender, claimable);
+                emit ClaimPremiums(msg.sender, claimable);
+            } else {
+                providers[msg.sender].premiumIndex = premiumsAccum;
+                providers[msg.sender].lastClaim = LastClaim({
+                  lastPTPS: ttsp,
+                  lastGlobalTPS: totalProtectionSeconds
+                });
             }
         } else {
             providers[msg.sender].premiumIndex = premiumsAccum;
@@ -897,15 +912,15 @@ contract UmbrellaMetaPool is CoverPricing {
     /// @notice Sweep multiple sets of premiums into reserves
     function sweepPremiums(uint256[] memory pids)
         public
-        updateGlobalTPS
     {
+        updateGlobalTPS();
         uint pidsLength = pids.length;
         uint128 totalSweptCoverage;
         uint128 totalPaid;
         for (uint256 i = 0; i < pidsLength; i++) {
             (uint128 coverageAmount, uint128 paid) = _sweep(pids[i]);
-            totalSweptCoverage = totalSweptCoverage.add(coverageAmount);
-            totalPaid          = totalPaid.add(paid);
+            totalSweptCoverage = safe128(uint256(totalSweptCoverage).add(coverageAmount));
+            totalPaid          = safe128(uint256(totalPaid).add(paid));
         }
         _update(totalSweptCoverage, totalPaid);
     }
@@ -913,8 +928,8 @@ contract UmbrellaMetaPool is CoverPricing {
     /// @notice Sweep premium of a protection into reserves
     function sweep(uint256 pid)
         public
-        updateGlobalTPS
     {
+        updateGlobalTPS();
         (uint128 coverageAmount, uint128 paid) = _sweep(pid);
         _update(coverageAmount, paid);
     }
@@ -941,21 +956,21 @@ contract UmbrellaMetaPool is CoverPricing {
     function _update(uint128 coverageRemoved, uint128 premiumsPaid)
         internal
     {
-        utilized = utilized.sub(coverageRemoved);
+        utilized = uint128(uint256(utilized).sub(coverageRemoved));
         uint128 arbFees;
         uint128 createFees;
         uint128 rollovers;
         if (arbiterFee > 0) {
             arbFees = premiumsPaid.mul(arbiterFee).div(BASE);
-            arbiterFees = arbiterFees.add(arbFees); // pay arbiter
+            arbiterFees = safe128(uint256(arbiterFees).add(arbFees)); // pay arbiter
         }
         if (creatorFee > 0) {
             createFees = premiumsPaid.mul(creatorFee).div(BASE);
-            creatorFees = creatorFees.add(createFees); // pay creator
+            creatorFees = safe128(uint256(creatorFees).add(createFees)); // pay creator
         }
         if (rollover > 0) {
             rollovers = premiumsPaid.mul(rollover).div(BASE);
-            reserves = reserves.add(rollovers); // rollover some % of premiums into reserves
+            reserves = safe128(uint256(reserves).add(rollovers)); // rollover some % of premiums into reserves
         }
 
         // push remaining premiums to premium pool
@@ -976,7 +991,7 @@ contract UmbrellaMetaPool is CoverPricing {
         if (!needs_sort && claimsLength > 0) {
             // allow out of order if we sort, otherwise revert
             uint32 last = claimTimes[conceptIndex][claimTimes[conceptIndex].length - 1];
-            require(settleTime > last, "ProtectionPool::_setSettling: !settleTime");
+            require(settleTime > last, "_setSettling:!settleTime");
         }
         // add a claim time
         claimTimes[conceptIndex].push(settleTime);
@@ -993,7 +1008,7 @@ contract UmbrellaMetaPool is CoverPricing {
         public
         onlyArbiter
     {
-        require(!accepted, "ProtectionPool::_acceptArbiter: Arbiter has already accepted/abdicated.");
+        require(!accepted, "acceptArb:accepted");
         arbSet = true;
         accepted = true;
     }
@@ -1029,14 +1044,6 @@ contract UmbrellaMetaPool is CoverPricing {
     }
 
     // ============ Helper Functions ============
-    function safe32(uint256 n)
-        internal
-        pure
-        returns (uint32)
-    {
-        require(n < 2**32, "Bad safe32 cast");
-        return uint32(n);
-    }
 
     function quickSort(uint32[] storage arr, int left, int right) internal {
         int i = left;
@@ -1057,5 +1064,4 @@ contract UmbrellaMetaPool is CoverPricing {
         if (i < right)
             quickSort(arr, i, right);
     }
-
 }
