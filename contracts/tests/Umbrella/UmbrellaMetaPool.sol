@@ -362,6 +362,19 @@ contract UmbrellaMetaPool is CoverPricing {
     // ============ Structs & Enums ============
     enum Status { Active, Swept, Claimed }
 
+    struct Parameters{
+        address payToken_;
+        uint64 coefficients;
+        uint128 maxDuration_;
+        UmbrellaMetaPool.Fees fees;
+        uint128 minPay_;
+        uint128 lockupPeriod_;
+        uint128 withdrawGracePeriod_;
+        string[] coveredConcepts_;
+        string description_;
+        address creator_;
+        address arbiter_;
+    }
 
     struct LastClaim {
         uint256 lastGlobalTPS;
@@ -416,17 +429,7 @@ contract UmbrellaMetaPool is CoverPricing {
     // ============ Constructor ============
 
     function initialize(
-        address payToken_,
-        uint64 coefficients,
-        uint128 maxDuration_,
-        Fees memory fees,
-        uint128 minPay_,
-        uint128 lockupPeriod_,
-        uint128 withdrawGracePeriod_,
-        string[] memory coveredConcepts_,
-        string memory description_,
-        address creator_,
-        address arbiter_
+        Parameters memory parameters
     )
         public
     {
@@ -440,23 +443,23 @@ contract UmbrellaMetaPool is CoverPricing {
         /* require(creatorFee_ <= MAX_CREATE_FEE, "!create fee"); */
         // :TODO
 
-        intialize_rate(coefficients);
+        intialize_rate(parameters.coefficients);
 
-        payToken            = payToken_;
-        max_duration        = maxDuration_;
-        arbiterFee          = fees.arbiterFee;
-        creatorFee          = fees.creatorFee;
-        rollover            = fees.rollover;
-        coveredConcepts     = coveredConcepts_;
-        description         = description_;
-        creator             = creator_;
-        arbiter             = arbiter_;
-        minPay              = minPay_;
-        lockupPeriod        = lockupPeriod_;
-        withdrawGracePeriod = withdrawGracePeriod_;
-        claimTimes          = new uint32[][](coveredConcepts_.length);
+        payToken            = parameters.payToken_;
+        max_duration        = parameters.maxDuration_;
+        arbiterFee          = parameters.fees.arbiterFee;
+        creatorFee          = parameters.fees.creatorFee;
+        rollover            = parameters.fees.rollover;
+        coveredConcepts     = parameters.coveredConcepts_;
+        description         = parameters.description_;
+        creator             = parameters.creator_;
+        arbiter             = parameters.arbiter_;
+        minPay              = parameters.minPay_;
+        lockupPeriod        = parameters.lockupPeriod_;
+        withdrawGracePeriod = parameters.withdrawGracePeriod_;
+        claimTimes          = new uint32[][](parameters.coveredConcepts_.length);
 
-        if (creator_ == arbiter_) {
+        if (parameters.creator_ == parameters.arbiter_) {
             // auto accept if creator is arbiter
             arbSet = true;
             accepted = true;

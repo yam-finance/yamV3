@@ -9,6 +9,7 @@ import { IERC20 } from "../../lib/IERC20.sol";
 import { WETH9 } from "../../lib/WETH9.sol";
 import { Timelock } from "../../governance/TimeLock.sol";
 import { UmbrellaMetaPool } from "./UmbrellaMetaPool.sol";
+import { UmbrellaMetaPoolFactory } from "./UmbrellaMetaPoolFactory.sol";
 
 
 contract CoverageUser {
@@ -58,11 +59,15 @@ contract Prop3 is YAMv3Test {
     event E2(bytes);
     event Coefs(uint128[] coefs);
 
-    UmbrellaMetaPool pool;
+    address umbrellaMetaPoolTemplate;
+    UmbrellaMetaPoolFactory factory;
     CoverageUser cov_user;
+    UmbrellaMetaPool pool;
+
     function setUp() public {
         setUpCore();
-        pool = new UmbrellaMetaPool();
+        umbrellaMetaPoolTemplate = address(new UmbrellaMetaPool());
+        factory = new UmbrellaMetaPoolFactory(umbrellaMetaPoolTemplate);
         cov_user = new CoverageUser();
     }
 
@@ -89,8 +94,8 @@ contract Prop3 is YAMv3Test {
           arbiterFee: arbiterFee_,
           rollover: rollover_
         });
-        pool.initialize(
-            DAI,
+        pool = factory.createPool(
+            UmbrellaMetaPool.Parameters(DAI,
             coefs,
             86400*365+1,
             fees,
@@ -101,7 +106,7 @@ contract Prop3 is YAMv3Test {
             description,
             me,
             me
-        );
+        ));
         uint128[] memory coefs2 = pool.getCoefficients();
         assertEq(uint256(coefs2[0]), 10, "c_0");
         assertEq(uint256(coefs2[1]), 20, "c_1");
@@ -143,7 +148,8 @@ contract Prop3 is YAMv3Test {
           arbiterFee: arbiterFee_,
           rollover: rollover_
         });
-        pool.initialize(
+        pool = factory.createPool(
+          UmbrellaMetaPool.Parameters(
             WETH,
             coefs,
             86400*365+1,
@@ -155,7 +161,7 @@ contract Prop3 is YAMv3Test {
             description,
             me,
             me
-        );
+        ));
         uint128[] memory coefs2 = pool.getCoefficients();
         assertEq(uint256(coefs2[0]), 10, "c_0");
         assertEq(uint256(coefs2[1]), 20, "c_1");
