@@ -3,19 +3,18 @@ pragma experimental ABIEncoderV2;
 
 import "./UniHelper.sol";
 import {YamSubGoverned} from "../index_staking/YamGoverned.sol";
-import {TWAPBounded2} from "./TWAPBounded2.sol";
+import {TWAPBoundedUGASJUN} from "./TWAPBoundedUGASJUN.sol";
 import {SynthMinter} from "./SynthMinter.sol";
 
-contract UMAFarmingMar is TWAPBounded2, UniHelper, YamSubGoverned {
+contract UGASJUNFarming is TWAPBoundedUGASJUN, UniHelper, YamSubGoverned {
     enum ACTION {ENTER, EXIT}
 
-    constructor(address pendingGov_) public {
-        gov = msg.sender;
-        pendingGov = pendingGov_;
+    constructor(address gov_) public {
+        gov = gov_;
     }
 
     SynthMinter minter = SynthMinter(
-        0xfA3AA7EE08399A4cE0B4921c85AB7D645Ccac669
+        0x4E8d60A785c2636A63c5Bd47C7050d21266c8B43
     );
 
     bool completed = true;
@@ -39,16 +38,16 @@ contract UMAFarmingMar is TWAPBounded2, UniHelper, YamSubGoverned {
     }
 
     function _repayAndWithdraw() internal {
-        MAR_UGAS.approve(address(minter), uint256(-1));
+        JUN_UGAS.approve(address(minter), uint256(-1));
         SynthMinter.PositionData memory position = minter.positions(
             address(this)
         );
-        uint256 ugasBalance = MAR_UGAS.balanceOf(address(this));
-        // We might end up with more MAR UGAS than we have debt. These will get sent to the treasury for future redemption
+        uint256 ugasBalance = JUN_UGAS.balanceOf(address(this));
+        // We might end up with more JUN UGAS than we have debt. These will get sent to the treasury for future redemption
         if (ugasBalance >= position.tokensOutstanding.rawValue) {
             minter.redeem(position.tokensOutstanding);
         } else {
-            // We might end up with more debt than we have MAR UGAS. In this case, only redeem MAX(minSponsorTokens, ugasBalance)
+            // We might end up with more debt than we have JUN UGAS. In this case, only redeem MAX(minSponsorTokens, ugasBalance)
             // The extra debt will need to be handled externally, by either waiting until expiry, others sponsoring the debt for later reimbursement, or purchasing the ugas
             minter.redeem(
                 SynthMinter.Unsigned(
@@ -74,7 +73,7 @@ contract UMAFarmingMar is TWAPBounded2, UniHelper, YamSubGoverned {
             "Market rate is outside bounds"
         );
         uint256 wethBalance = WETH.balanceOf(RESERVES);
-        require(wethBalance > 100*(10**18), "Not enough ETH"); // This is so we can be sure the FEB contract exited
+        require(wethBalance > 100*(10**18), "Not enough ETH"); // This is so we can be sure the MAR contract exited
         // Since we are aiming for a CR of 4, we can mint with up to 80% of reserves
         // We mint slightly less so we can be sure there will be enough WETH
         uint256 collateral_amount = (wethBalance * 79) / 100;
@@ -83,7 +82,7 @@ contract UMAFarmingMar is TWAPBounded2, UniHelper, YamSubGoverned {
             4;
         _mint(collateral_amount, mint_amount);
 
-        _mintLPToken(uniswap_pair, MAR_UGAS, WETH, mint_amount, RESERVES);
+        _mintLPToken(uniswap_pair, JUN_UGAS, WETH, mint_amount, RESERVES);
 
         completed = true;
     }
@@ -105,9 +104,9 @@ contract UMAFarmingMar is TWAPBounded2, UniHelper, YamSubGoverned {
         _repayAndWithdraw();
 
         WETH.transfer(RESERVES, WETH.balanceOf(address(this)));
-        uint256 ugasBalance = MAR_UGAS.balanceOf(address(this));
+        uint256 ugasBalance = JUN_UGAS.balanceOf(address(this));
         if (ugasBalance > 0) {
-            MAR_UGAS.transfer(RESERVES, ugasBalance);
+            JUN_UGAS.transfer(RESERVES, ugasBalance);
         }
         completed = true;
     }

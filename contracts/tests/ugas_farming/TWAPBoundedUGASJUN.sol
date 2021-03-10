@@ -1,12 +1,10 @@
-pragma solidity 0.5.15;
-
 import "../../lib/SafeERC20.sol";
 import "../../lib/SafeMath.sol";
 import "../../lib/IUniswapV2Pair.sol";
 import "../../lib/UniswapV2OracleLibrary.sol";
 
 // Hardcoding a lot of constants and stripping out unnecessary things because of high gas prices
-contract TWAPBounded2 {
+contract TWAPBoundedUGASJUN {
     using SafeMath for uint256;
 
     uint256 internal constant BASE = 10**18;
@@ -15,15 +13,15 @@ contract TWAPBounded2 {
 
     /// @notice Current uniswap pair for purchase & sale tokens
     UniswapPair internal uniswap_pair = UniswapPair(
-        0x683ea972fFa19b7BaD6d6be0440E0A8465dBA71C
+        0x2b5DFb7874F685BEA30b7d8426c9643A4bCF5873
     );
 
     IERC20 internal constant WETH = IERC20(
         0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
     );
 
-    IERC20 internal constant MAR_UGAS = IERC20(
-        0x4e110603e70B0b5f1c403ee543b37e1F1244Cf28
+    IERC20 internal constant JUN_UGAS = IERC20(
+        0xa6B9d7E3d76cF23549293Fb22c488E0Ea591A44e
     );
     
     /// @notice last cumulative price update time

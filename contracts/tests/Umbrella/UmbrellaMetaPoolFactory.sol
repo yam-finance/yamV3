@@ -1,6 +1,8 @@
+pragma solidity 0.5.15;
+pragma experimental ABIEncoderV2;
+
 import {CloneFactory} from "../../lib/CloneFactory.sol";
 import {UmbrellaMetaPool} from "./UmbrellaMetaPool.sol";
-pragma experimental ABIEncoderV2;
 
 contract UmbrellaMetaPoolFactory is CloneFactory {
     address public target;
@@ -9,15 +11,15 @@ contract UmbrellaMetaPoolFactory is CloneFactory {
         target = target_;
     }
 
-    event PoolCreated();
+    event PoolCreated(UmbrellaMetaPool pool);
 
-    function createPool(
-        UmbrellaMetaPool.Parameters calldata parameters
-    ) external returns (UmbrellaMetaPool newPool) {
+    function createPool(UmbrellaMetaPool.Parameters calldata parameters)
+        external
+        returns (UmbrellaMetaPool newPool)
+    {
         newPool = UmbrellaMetaPool(createClone(target));
-        newPool.initialize(
-            parameters
-        );
+        newPool.initialize(parameters);
+        emit PoolCreated(newPool);
         return newPool;
     }
 }
