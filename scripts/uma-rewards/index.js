@@ -2,30 +2,27 @@ let Web3 = require("web3")
 let web3 = new Web3('https://mainnet.infura.io/v3/18533a1dfcd146b8994f38b8e6af372c')
 let ABIS = require('./abis.js')
 const WETH = new web3.eth.Contract(ABIS.ERC20_ABI, '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2')
-
+const USDC = new web3.eth.Contract(ABIS.ERC20_ABI, '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48')
 let paymentPeriods = [{
-  startBlock: 11826823,
-  amount: 750000000000000000000n * 8n / 10n,
-  endBlock: 11872352,
+  startBlock: 12000974,
+  amount: 5000000000000000000000n * 82n / 100n,
+  endBlock: 12046295,
 }, {
-  startBlock: 11872068,
-  amount: 891197364599133493182n * 8n / 10n,
-  endBlock: 11917648,
+  startBlock: 12046295,
+  amount: 10000000000000000000000n * 82n / 100n,
+  endBlock: 12091616,
 }, {
-  startBlock: 11917506,
-  amount: 1021370000000000000000n * 8n / 10n,
-  endBlock: 11962932,
+  startBlock: 12091616,
+  amount: 10000000000000000000000n * 82n / 100n,
+  endBlock: 12136937,
 }
 ]
 let contracts = [{
-  emp: '0xEAA081a9fad4607CdF046fEA7D4BF3DfEf533282', //uGAS FEB
-  pool: '0x4a8a2ea3718964ed0551a3191c30e49ea38a5ade',
+  createdAt: 11962464,
+  emp: '0x4F1424Cef6AcE40c0ae4fc64d74B734f1eAF153C', //uSTONKS APR
+  pool: '0xedf187890af846bd59f560827ebd2091c49b75df',
   periodData: [],
-  expire: 11948960,
-}, {
-  emp: '0xfA3AA7EE08399A4cE0B4921c85AB7D645Ccac669', //uGAS MAR
-  pool: '0x683ea972ffa19b7bad6d6be0440e0a8465dba71c',
-  periodData: []
+  collateralConversionRate: 1900n
 }]
 
 contracts.forEach((contract) => {
@@ -98,13 +95,20 @@ function calculateProvidedPerPeriod() {
 async function calculateETHPerLPTokenPerContractPerPeriod() {
   await Promise.all(contracts.map(async (contract, contractIndex) => {
     await Promise.all(paymentPeriods.map(async (period, periodIndex) => {
+
       let ethBalance
       let totalSupply
       try {
-        ethBalance = BigInt((await WETH.methods.balanceOf(contract.pool).call({}, period.startBlock)).toString())
-        totalSupply = BigInt((await contract.poolContract.methods.totalSupply().call({}, period.startBlock)).toString())
+        if (contract.collateralConversionRate !== undefined) {
+          ethBalance = BigInt((await USDC.methods.balanceOf(contract.pool).call({}, period.endBlock)).toString()) / contract.collateralConversionRate * (10n**12n)
+        } else {
+          ethBalance = BigInt((await WETH.methods.balanceOf(contract.pool).call({}, period.endBlock)).toString())
+
+        }
+        totalSupply = BigInt((await contract.poolContract.methods.totalSupply().call({}, period.endBlock)).toString())
       } catch (e) {
-        console.log(period.startBlock)
+        console.log(contractIndex, periodIndex)
+        console.log(e)
       }
       contract.periodData[periodIndex] = {
         ethPerLPToken: totalSupply * (10n ** 18n) / ethBalance
@@ -119,7 +123,7 @@ async function calculateUserProvidedETHSecondsPerContractPerPeriod() {
     await Promise.all(user.contracts.map(async (userContractData, contractIndex) => {
       let contract = contracts[contractIndex]
       await Promise.all(paymentPeriods.map(async (period, periodIndex) => {
-        let currentBlock = period.startBlock
+        let currentBlock = period.startBlock > contract.createdAt ? period.startBlock : contract.createdAt
         let positionData = await contract.empContract.methods.positions(userAddress).call({}, currentBlock)
         if (positionData.rawCollateral.rawValue === '0') {
           let events = await contract.empContract.getPastEvents('PositionCreated', {
