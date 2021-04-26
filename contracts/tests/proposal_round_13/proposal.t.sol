@@ -16,11 +16,10 @@ import {YAMDistributor} from "./YAMDistributor.sol";
 contract Prop13 is YAMv3Test {
     StreamManager streamManager = StreamManager(0x0779F8f2da25f25C7C568F4aBcCED8D0e6d48FfC);
     UMADistributor umaDistributor = UMADistributor(0xc4f67FfBDFD80CC8e1CceB1C4F51baC74EeDA71D);
-    YAMDistributor yamDistributor;
+    YAMDistributor yamDistributor = YAMDistributor(0xb1A787A25F614f0c643a27877A0E8f7c363c255a);
 
     function setUp() public {
         setUpCore();
-        yamDistributor= new YAMDistributor();
     }
 
     event TEST(
@@ -30,7 +29,9 @@ contract Prop13 is YAMv3Test {
         bytes[] calldatas,
         string description
     );
+    
     event GAS_USAGE(uint256 used);
+    
     /**
      * Summary:
      * 1. Give one time StreamManager permissions to use VestingPool
@@ -73,9 +74,10 @@ contract Prop13 is YAMv3Test {
         values[3] = 0;
         signatures[3] = "mint(address,uint256)";
         calldatas[3] = abi.encode(address(yamDistributor), 36102006063173137830825);
+
         yamhelper.getQuorum(yamV3, me);
         yamhelper.bing();
-
+        
         roll_prop(targets, values, signatures, calldatas, description);
         uint256 remainingGas1 = gasleft();
         streamManager.execute();
