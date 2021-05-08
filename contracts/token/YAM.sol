@@ -427,6 +427,9 @@ contract YAMToken is YAMGovernanceToken {
             }
         }
 
+        // Prevent reset to zero.
+        require(yamsScalingFactor > 0, "scaling factor is zero");
+        
         // update total supply, correctly
         totalSupply = _yamToFragment(initSupply);
 
