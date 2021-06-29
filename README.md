@@ -77,14 +77,14 @@ To run tests, install Nix and dapptools:
 
 ```
 $ curl -L https://nixos.org/nix/install > nix.sh
-$ nix-env -iA dapp hevm -f https://github.com/dapphub/dapptools/tarball/master -v
+$ nix-env -iA dapp seth hevm -f https://github.com/dapphub/dapptools/tarball/master -v
 ```
 
 Running tests:
 
 ```
 $ export ETH_RPC_URL=http://localhost:8545 # mainnet node
-$ ./scripts/dapp-test.sh
+$ ./scripts/dapp-test.sh [test_name]
 ```
 
 ### Attributions
