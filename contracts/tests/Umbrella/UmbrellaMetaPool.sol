@@ -302,6 +302,8 @@ contract UmbrellaMetaPool is CoverPricing {
     /// @notice Whether the pool has an arbiter
     bool public arbSet;
     bool public accepted;
+    /// @notice Whether buying insurance is disabled
+    bool public buyDisabled;
 
     // === Pool storage ===
     /// @notice List of protected concepts, i.e. ["Dydx", "Compound", "Aave"]
@@ -580,6 +582,8 @@ contract UmbrellaMetaPool is CoverPricing {
         payable
         hasArbiter
     {
+        require(!buyDisabled, "buy: buyDisabled");
+
         // check deadline
         require(block.timestamp <= deadline,               "buy:!deadline");
         require(   conceptIndex <  coveredConcepts.length, "buy:!conceptIndex");
@@ -1033,6 +1037,14 @@ contract UmbrellaMetaPool is CoverPricing {
         onlyArbiter
     {
         arbSet = false;
+    }
+
+    ///@notice Disables buying insurance, providing coverage is still allowed
+    function _disableBuy() 
+        public 
+        onlyArbiter
+    {
+        buyDisabled = true;
     }
 
     // ============ Creator Functions ============
