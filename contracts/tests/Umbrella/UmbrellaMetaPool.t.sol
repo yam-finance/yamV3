@@ -712,6 +712,33 @@ contract Prop3 is YAMv3Test {
         continue_pool();
     }
 
+    function test_ycp_disable_buy() public {
+        // test setup
+        initialize_pool();
+        yamhelper.write_balanceOf(DAI, me, 200*10**18);
+        IERC20(DAI).approve(address(pool), uint(-1));
+        pool.provideCoverage(100*10**18);
+        pool._disableBuy();
+
+        // buy protection should be disabled
+        expect_revert_with(
+          address(pool),
+          "buyProtection(uint8,uint128,uint128,uint128,uint256)",
+          abi.encode(
+            30,
+            1,
+            1,
+            1,
+            block.timestamp + 10
+          ),
+          "buy: buyDisabled"
+        );
+
+        // providing liquidity should still work
+        pool.provideCoverage(100*10**18);
+        assertEq(uint256(pool.reserves()), 200*10**18, "reserves");
+    }
+
     function set_settling() public {
       yamhelper.ff(2);
       pool._setSettling(0, uint32(block.timestamp - 1), false);
