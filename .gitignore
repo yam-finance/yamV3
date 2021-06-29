@@ -6,6 +6,7 @@ out
 scripts/out/dapp.sol.json
 out2
 makepad_*
+nix.sh
 
 #Added by cargo
 
