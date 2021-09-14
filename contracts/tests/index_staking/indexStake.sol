@@ -10,7 +10,7 @@ interface IndexStaker {
     function balanceOf(address) external view returns (uint256);
 }
 
-contract IndexStaking is ReserveUniHelper {
+contract IndexStaking2 is ReserveUniHelper {
 
     constructor(address pendingGov_, address reserves_) public {
         gov = msg.sender;
@@ -65,8 +65,8 @@ contract IndexStaking is ReserveUniHelper {
     {
         if (isToken0Limited) {
           setup_twap_bound(
-              UniswapPair(lp).token0(), // The limiting asset
-              UniswapPair(lp).token1(),
+              IUniswapV2Pair(lp).token0(), // The limiting asset
+              IUniswapV2Pair(lp).token1(),
               amount, // amount of token0
               true, // is sale
               60 * 60, // 1 hour
@@ -77,8 +77,8 @@ contract IndexStaking is ReserveUniHelper {
           );
         } else {
           setup_twap_bound(
-              UniswapPair(lp).token1(), // The limiting asset
-              UniswapPair(lp).token0(),
+              IUniswapV2Pair(lp).token1(), // The limiting asset
+              IUniswapV2Pair(lp).token0(),
               amount, // amount of token1
               true, // is sale
               60 * 60, // 1 hour
@@ -105,8 +105,8 @@ contract IndexStaking is ReserveUniHelper {
     {
         staking.exit();
         setup_twap_bound(
-            UniswapPair(lp).token0(), // doesnt really matter
-            UniswapPair(lp).token1(), // doesnt really matter
+            IUniswapV2Pair(lp).token0(), // doesnt really matter
+            IUniswapV2Pair(lp).token1(), // doesnt really matter
             staking.balanceOf(address(this)), // amount of LP tokens
             true, // is sale
             60 * 60, // 1 hour
@@ -130,8 +130,8 @@ contract IndexStaking is ReserveUniHelper {
     {
         staking.withdraw(staking.balanceOf(address(this)));
         setup_twap_bound(
-            UniswapPair(lp).token0(), // doesnt really matter
-            UniswapPair(lp).token1(), // doesnt really matter
+            IUniswapV2Pair(lp).token0(), // doesnt really matter
+            IUniswapV2Pair(lp).token1(), // doesnt really matter
             staking.balanceOf(address(this)), // amount of LP tokens
             true, // is sale
             60 * 60, // 1 hour

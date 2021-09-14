@@ -4,7 +4,7 @@ import "../../lib/IUniswapV2Pair.sol";
 import "../../lib/UniswapV2OracleLibrary.sol";
 
 // Hardcoding a lot of constants and stripping out unnecessary things because of high gas prices
-contract TWAPBoundedUGASJUN {
+contract TWAPBoundedUSTONKSSEPT {
     using SafeMath for uint256;
 
     uint256 internal constant BASE = 10**18;
@@ -12,18 +12,15 @@ contract TWAPBoundedUGASJUN {
     uint256 internal constant ONE = 10**18;
 
     /// @notice Current uniswap pair for purchase & sale tokens
-    UniswapPair internal uniswap_pair = UniswapPair(
-        0x2b5DFb7874F685BEA30b7d8426c9643A4bCF5873
-    );
+    IUniswapV2Pair internal uniswap_pair =
+        IUniswapV2Pair(0xb9292B40cab08e5208b863ea9c4c4927a2308eEE);
 
-    IERC20 internal constant WETH = IERC20(
-        0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
-    );
+    IERC20 internal constant USDC =
+        IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
 
-    IERC20 internal constant JUN_UGAS = IERC20(
-        0xa6B9d7E3d76cF23549293Fb22c488E0Ea591A44e
-    );
-    
+    IERC20 internal constant SEPT_USTONKS =
+        IERC20(0xad4353347f05438Ace12aef7AceF6CB2b4186C00);
+
     /// @notice last cumulative price update time
     uint32 internal block_timestamp_last;
 
@@ -41,18 +38,18 @@ contract TWAPBoundedUGASJUN {
 
     function quote(uint256 purchaseAmount, uint256 saleAmount)
         internal
-        view
+        pure
         returns (uint256)
     {
         return purchaseAmount.mul(ONE).div(saleAmount);
     }
 
-    function bounds(uint256 uniswap_quote) internal view returns (uint256) {
+    function bounds(uint256 uniswap_quote) internal pure returns (uint256) {
         uint256 minimum = uniswap_quote.mul(BASE.sub(TWAP_BOUNDS)).div(BASE);
         return minimum;
     }
 
-    function bounds_max(uint256 uniswap_quote) internal view returns (uint256) {
+    function bounds_max(uint256 uniswap_quote) internal pure returns (uint256) {
         uint256 maximum = uniswap_quote.mul(BASE.add(TWAP_BOUNDS)).div(BASE);
         return maximum;
     }
@@ -71,13 +68,11 @@ contract TWAPBoundedUGASJUN {
 
     // callable by anyone
     function update_twap() public {
-        (
-            uint256 sell_token_priceCumulative,
-            uint32 blockTimestamp
-        ) = UniswapV2OracleLibrary.currentCumulativePrices(
-            address(uniswap_pair),
-            true
-        );
+        (uint256 sell_token_priceCumulative, uint32 blockTimestamp) =
+            UniswapV2OracleLibrary.currentCumulativePrices(
+                address(uniswap_pair),
+                false
+            );
         uint32 timeElapsed = blockTimestamp - block_timestamp_last; // overflow is impossible
 
         // ensure that it's been long enough since the last update
@@ -89,22 +84,21 @@ contract TWAPBoundedUGASJUN {
     }
 
     function consult() internal view returns (uint256) {
-        (
-            uint256 sell_token_priceCumulative,
-            uint32 blockTimestamp
-        ) = UniswapV2OracleLibrary.currentCumulativePrices(
-            address(uniswap_pair),
-            true
-        );
+        (uint256 sell_token_priceCumulative, uint32 blockTimestamp) =
+            UniswapV2OracleLibrary.currentCumulativePrices(
+                address(uniswap_pair),
+                false
+            );
         uint32 timeElapsed = blockTimestamp - block_timestamp_last; // overflow is impossible
 
         // overflow is desired
-        uint256 priceAverageSell = uint256(
-            uint224(
-                (sell_token_priceCumulative - price_cumulative_last) /
-                    timeElapsed
-            )
-        );
+        uint256 priceAverageSell =
+            uint256(
+                uint224(
+                    (sell_token_priceCumulative - price_cumulative_last) /
+                        timeElapsed
+                )
+            );
 
         // single hop
         uint256 purchasePrice;

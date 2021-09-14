@@ -20,9 +20,9 @@ library UniswapV2OracleLibrary {
         bool isToken0
     ) internal view returns (uint priceCumulative, uint32 blockTimestamp) {
         blockTimestamp = currentBlockTimestamp();
-        (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast) = UniswapPair(pair).getReserves();
+        (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast) = IUniswapV2Pair(pair).getReserves();
         if (isToken0) {
-          priceCumulative = UniswapPair(pair).price0CumulativeLast();
+          priceCumulative = IUniswapV2Pair(pair).price0CumulativeLast();
 
           // if time has elapsed since the last update on the pair, mock the accumulated price values
           if (blockTimestampLast != blockTimestamp) {
@@ -33,7 +33,7 @@ library UniswapV2OracleLibrary {
               priceCumulative += uint(FixedPoint.fraction(reserve1, reserve0)._x) * timeElapsed;
           }
         } else {
-          priceCumulative = UniswapPair(pair).price1CumulativeLast();
+          priceCumulative = IUniswapV2Pair(pair).price1CumulativeLast();
           // if time has elapsed since the last update on the pair, mock the accumulated price values
           if (blockTimestampLast != blockTimestamp) {
               // subtraction overflow is desired

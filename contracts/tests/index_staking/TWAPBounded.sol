@@ -1,6 +1,6 @@
 pragma solidity 0.5.15;
 
-import "./YamGoverned.sol";
+import "../../lib/YamGoverned.sol";
 import "../../lib/SafeERC20.sol";
 import "../../lib/SafeMath.sol";
 import '../../lib/IUniswapV2Pair.sol';
@@ -122,14 +122,14 @@ contract TWAPBound is YamSubGoverned {
         priceCumulativeLastBuy = 0;
         priceAverageBuy = 0;
 
-        if (UniswapPair(uniswap1).token0() == sell_token_) {
+        if (IUniswapV2Pair(uniswap1).token0() == sell_token_) {
             saleTokenIs0 = true;
         } else {
             saleTokenIs0 = false;
         }
 
         if (uniswap2 != address(0)) {
-            if (UniswapPair(uniswap2).token0() == purchase_token_) {
+            if (IUniswapV2Pair(uniswap2).token0() == purchase_token_) {
                 purchaseTokenIs0 = true;
             } else {
                 purchaseTokenIs0 = false;
@@ -261,11 +261,11 @@ contract TWAPBound is YamSubGoverned {
             }
 
             if (purchaseTokenIs0) {
-                uint8 decs = ExpandedERC20(UniswapPair(uniswap_pair2).token1()).decimals();
+                uint8 decs = ExpandedERC20(IUniswapV2Pair(uniswap_pair2).token1()).decimals();
                 require(decs <= 18, "too many decimals");
                 one = 10**uint256(decs);
             } else {
-                uint8 decs = ExpandedERC20(UniswapPair(uniswap_pair2).token0()).decimals();
+                uint8 decs = ExpandedERC20(IUniswapV2Pair(uniswap_pair2).token0()).decimals();
                 require(decs <= 18, "too many decimals");
                 one = 10**uint256(decs);
             }

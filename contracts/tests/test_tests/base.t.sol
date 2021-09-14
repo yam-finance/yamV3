@@ -20,6 +20,7 @@ import { OTC } from "../OTC/OTC.sol";
 import {VestingPool} from "../vesting_pool/VestingPool.sol";
 import {MonthlyAllowance} from "../contributor_monthly_payments/MonthlyAllowance.sol";
 import {WETH9} from "../../lib/WETH9.sol";
+import {IndexStaking2} from "../index_staking/indexStake.sol";
 
 interface Hevm {
     function warp(uint) external;
@@ -83,13 +84,14 @@ contract YAMv3Test is DSTest {
 
     // --- yam ecosystem
     YAMDelegator yamV3 = YAMDelegator(0x0AaCfbeC6a24756c20D41914F2caba817C0d8521);
-    YamIncentivizerWithVoting incentivizer = YamIncentivizerWithVoting(0x5b0501F7041120d36Bc8c6DC3FAeA0b74b32a0Ed);
+    YamIncentivizerWithVoting incentivizer = YamIncentivizerWithVoting(0xD67c05523D8ec1c60760Fd017Ef006b9F6e496D0);
     YAMReserves2 reserves = YAMReserves2(0x97990B693835da58A281636296D2Bf02787DEa17);
     Timelock timelock = Timelock(0x8b4f1616751117C38a0f84F9A146cca191ea3EC5); // governance owner
     YamGovernorAlpha public governor = YamGovernorAlpha(0x2DA253835967D6E721C6c077157F9c9742934aeA);
     OTC public otc_onchain = OTC(0x92ab5CCe7Af1605da2681458aE52a0BEc4eCB74C);
     VestingPool public vestingPool = VestingPool(0xDCf613db29E4d0B35e7e15e93BF6cc6315eB0b82);
     MonthlyAllowance public monthlyAllowance = MonthlyAllowance(0x03A882495Bc616D3a1508211312765904Fb062d1);
+    IndexStaking2 public indexStaking = IndexStaking2(0x205Cc7463267861002b27021C7108Bc230603d0F);
 
     // --- uniswap
     UniRouter2 uniRouter = UniRouter2(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
@@ -105,6 +107,10 @@ contract YAMv3Test is DSTest {
     address public constant DAI = address(0x6B175474E89094C44Da98b954EedeAC495271d0F);
     address public constant USDC = address(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
     address public constant YAM_HOUSE = address(0xD83dfE003E7c42077186D690DD3D24a0c965ca4e);
+    address public constant SUSHI = address(0x6B3595068778DD592e39A122f4f5a5cF09C90fE2);
+    address public constant xSUSHI = address(0x8798249c2E607446EfB7Ad49eC89dD1865Ff4272);
+    address public constant yUSDC = address(0x5f18C75AbDAe578b483E5F43f12a39cF75b973a9);
+    address public constant USDT = address(0xdAC17F958D2ee523a2206206994597C13D831ec7);
 
     // --- weth
     WETH9 weth = WETH9(WETH);
@@ -197,10 +203,10 @@ contract YAMv3Test is DSTest {
         IERC20(yyCRV).approve(address(uniRouter), uint256(-1));
         yamV3.approve(address(uniRouter), uint256(-1));
         address yyCRVPool = pairFor(address(yamV3), yyCRV);
-        UniswapPair(yyCRVPool).sync();
-        (uint256 reserves0, uint256 reserves1, ) = UniswapPair(yyCRVPool).getReserves();
+        IUniswapV2Pair(yyCRVPool).sync();
+        (uint256 reserves0, uint256 reserves1, ) = IUniswapV2Pair(yyCRVPool).getReserves();
         uint256 quote;
-        if (address(yamV3) == UniswapPair(yyCRVPool).token0()) {
+        if (address(yamV3) == IUniswapV2Pair(yyCRVPool).token0()) {
           quote = uniRouter.quote(10**18, reserves1, reserves0);
         } else {
           quote = uniRouter.quote(10**18, reserves0, reserves1);
@@ -336,8 +342,8 @@ contract YAMv3Test is DSTest {
     )
         public
     {
-        UniswapPair secondary_pair = UniswapPair(secondary_uni_pair);
-        UniswapPair pair = UniswapPair(main_uni_pair);
+        IUniswapV2Pair secondary_pair = IUniswapV2Pair(secondary_uni_pair);
+        IUniswapV2Pair pair = IUniswapV2Pair(main_uni_pair);
         (uint256 token0Reserves2, uint256 token1Reserves2, ) = secondary_pair.getReserves();
 
         address token02 = secondary_pair.token0();
@@ -377,7 +383,7 @@ contract YAMv3Test is DSTest {
         public
     {
         // adjusts the price by minimally changing token balances in uniswap pair
-        UniswapPair pair = UniswapPair(uni_pair);
+        IUniswapV2Pair pair = IUniswapV2Pair(uni_pair);
         (uint256 token0Reserves, uint256 token1Reserves, ) = pair.getReserves();
         uint256 quote;
         if ( pair.token0() == who ) {
@@ -449,7 +455,7 @@ contract YAMv3Test is DSTest {
 
 
     function increase_liquidity(address uni_pair, uint256 scale) public {
-        UniswapPair pair = UniswapPair(uni_pair);
+        IUniswapV2Pair pair = IUniswapV2Pair(uni_pair);
         (uint256 token0Reserves, uint256 token1Reserves, ) = pair.getReserves();
         if (pair.token0() == WETH) {
             yamhelper.write_map(pair.token0(), "balanceOf(address)", uni_pair, token0Reserves * scale);

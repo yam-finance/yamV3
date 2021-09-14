@@ -84,6 +84,19 @@ contract YAMDelegator is YAMTokenInterface, YAMDelegatorInterface {
     }
 
     /**
+     * @notice Burns YAM from msg.sender
+     * @param burnAmount The amount of YAM to burn from msg.sender
+     * @return uint 0=success, otherwise a failure (see ErrorReporter.sol for details)
+     */
+    function burn(uint256 burnAmount)
+        external
+        returns (bool)
+    {
+        burnAmount; // Shh
+        delegateAndReturn();
+    }
+
+    /**
      * @notice Transfer `amount` tokens from `msg.sender` to `dst`
      * @param dst The address of the destination account
      * @param amount The number of tokens to transfer

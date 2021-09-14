@@ -2,7 +2,7 @@ pragma solidity 0.5.15;
 pragma experimental ABIEncoderV2;
 
 import "../test_tests/base.t.sol";
-import { IndexStaking } from "./indexStake.sol";
+import { IndexStaking2 } from "./indexStake.sol";
 import { YamGovernorAlpha } from "../../governance/YamGovernorAlpha.sol";
 import { MonthlyAllowance } from "../contributor_monthly_payments/MonthlyAllowance.sol";
 import { VestingPool } from "../vesting_pool/VestingPool.sol";
@@ -10,11 +10,11 @@ import { IERC20 } from "../../lib/IERC20.sol";
 import { Timelock } from "../../governance/TimeLock.sol";
 
 contract IndexStakeTest is YAMv3Test {
-    IndexStaking index;
+    IndexStaking2 index;
 
     function setUp() public {
         setUpCore();
-        /* index = new IndexStaking(address(timelock), address(reserves)); */
+        /* index = new IndexStaking2(address(timelock), address(reserves)); */
         // get reserves_gov, approve withdraws
         /* yamhelper.write_flat(address(reserves), "gov()", me);
         address[] memory whos = new address[](2);
@@ -29,7 +29,7 @@ contract IndexStakeTest is YAMv3Test {
         reserves.whitelistWithdrawals(whos, amounts, tokens); */
     }
 
-    IndexStaking index_onchain = IndexStaking(0xA940e0541F8b8A40551B28D4C7e37bD85DE426fF);
+    IndexStaking2 index_onchain = IndexStaking2(0x205Cc7463267861002b27021C7108Bc230603d0F);
     YamGovernorAlpha contributor_gov = YamGovernorAlpha(0xDceC4A3aA84f79249c1b5325a06c1560d202Dd87);
     MonthlyAllowance monthlyAllowance = MonthlyAllowance(0x03A882495Bc616D3a1508211312765904Fb062d1);
     VestingPool vestingPool = VestingPool(0xDCf613db29E4d0B35e7e15e93BF6cc6315eB0b82);
@@ -149,7 +149,7 @@ contract IndexStakeTest is YAMv3Test {
         assertEq(index_onchain.bounds_max(), 0, "bounds_max");
 
         uint256 quoted;
-        (uint256 reserve0, uint256 reserve1, ) = UniswapPair(index_onchain.uniswap_pair1()).getReserves();
+        (uint256 reserve0, uint256 reserve1, ) = IUniswapV2Pair(index_onchain.uniswap_pair1()).getReserves();
         if (index_onchain.saleTokenIs0()) {
           quoted = index_onchain.quote(reserve1, reserve0);
         } else {
@@ -182,7 +182,7 @@ contract IndexStakeTest is YAMv3Test {
       assertEq(index.bounds_max(), 0, "bounds_max");
 
       uint256 quoted;
-      (uint256 reserve0, uint256 reserve1, ) = UniswapPair(index.uniswap_pair1()).getReserves();
+      (uint256 reserve0, uint256 reserve1, ) = IUniswapV2Pair(index.uniswap_pair1()).getReserves();
       if (index.saleTokenIs0()) {
         quoted = index.quote(reserve1, reserve0);
       } else {
@@ -213,7 +213,7 @@ contract IndexStakeTest is YAMv3Test {
         assertEq(index.bounds_max(), 0, "bounds_max");
 
         uint256 quoted;
-        (uint256 reserve0, uint256 reserve1, ) = UniswapPair(index.uniswap_pair1()).getReserves();
+        (uint256 reserve0, uint256 reserve1, ) = IUniswapV2Pair(index.uniswap_pair1()).getReserves();
         if (index.saleTokenIs0()) {
           quoted = index.quote(reserve1, reserve0);
         } else {
@@ -251,7 +251,7 @@ contract IndexStakeTest is YAMv3Test {
         assertEq(index.bounds_max(), 0, "bounds_max");
 
         uint256 quoted;
-        (uint256 reserve0, uint256 reserve1, ) = UniswapPair(index.uniswap_pair1()).getReserves();
+        (uint256 reserve0, uint256 reserve1, ) = IUniswapV2Pair(index.uniswap_pair1()).getReserves();
         if (index.saleTokenIs0()) {
           quoted = index.quote(reserve1, reserve0);
         } else {
@@ -281,7 +281,7 @@ contract IndexStakeTest is YAMv3Test {
         assertEq(index.bounds_max(), 0, "bounds_max");
 
         uint256 quoted;
-        (uint256 reserve0, uint256 reserve1, ) = UniswapPair(index.uniswap_pair1()).getReserves();
+        (uint256 reserve0, uint256 reserve1, ) = IUniswapV2Pair(index.uniswap_pair1()).getReserves();
         if (index.saleTokenIs0()) {
           quoted = index.quote(reserve1, reserve0);
         } else {
@@ -306,7 +306,7 @@ contract IndexStakeTest is YAMv3Test {
         assertEq(index.bounds_max(), 0, "bounds_max");
 
         uint256 quoted;
-        (uint256 reserve0, uint256 reserve1, ) = UniswapPair(index.uniswap_pair1()).getReserves();
+        (uint256 reserve0, uint256 reserve1, ) = IUniswapV2Pair(index.uniswap_pair1()).getReserves();
         if (index.saleTokenIs0()) {
           quoted = index.quote(reserve1, reserve0);
         } else {

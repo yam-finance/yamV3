@@ -1,10 +1,12 @@
+pragma solidity 0.5.15;
+
 import "../../lib/SafeERC20.sol";
 import "../../lib/SafeMath.sol";
 import "../../lib/IUniswapV2Pair.sol";
 import "../../lib/UniswapV2OracleLibrary.sol";
 
 // Hardcoding a lot of constants and stripping out unnecessary things because of high gas prices
-contract TWAPBoundedUSTONKSAPR {
+contract TWAPBoundedUPUNKSSEPT {
     using SafeMath for uint256;
 
     uint256 internal constant BASE = 10**18;
@@ -12,15 +14,18 @@ contract TWAPBoundedUSTONKSAPR {
     uint256 internal constant ONE = 10**18;
 
     /// @notice Current uniswap pair for purchase & sale tokens
-    UniswapPair internal uniswap_pair =
-        UniswapPair(0xEdf187890Af846bd59f560827EBD2091C49b75Df);
+    IUniswapV2Pair internal uniswap_pair = IUniswapV2Pair(
+        0x6E01DB46b183593374A49c0025e42c4bB7Ee3ffA
+    );
 
-    IERC20 internal constant USDC =
-        IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
+    IERC20 internal constant WETH = IERC20(
+        0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
+    );
 
-    IERC20 internal constant USTONKS_APR =
-        IERC20(0xEC58d3aefc9AAa2E0036FA65F70d569f49D9d1ED);
-
+    IERC20 internal constant SEPT_UPUNKS = IERC20(
+        0x86140A763077155964754968B6F6e243fE809cBe
+    );
+    
     /// @notice last cumulative price update time
     uint32 internal block_timestamp_last;
 
@@ -54,27 +59,27 @@ contract TWAPBoundedUSTONKSAPR {
         return maximum;
     }
 
-
     function withinBounds(uint256 purchaseAmount, uint256 saleAmount)
         internal
-        
+        view
         returns (bool)
     {
         uint256 uniswap_quote = consult();
         uint256 quoted = quote(purchaseAmount, saleAmount);
         uint256 minimum = bounds(uniswap_quote);
         uint256 maximum = bounds_max(uniswap_quote);
-
         return quoted > minimum && quoted < maximum;
     }
 
     // callable by anyone
     function update_twap() public {
-        (uint256 sell_token_priceCumulative, uint32 blockTimestamp) =
-            UniswapV2OracleLibrary.currentCumulativePrices(
-                address(uniswap_pair),
-                false
-            );
+        (
+            uint256 sell_token_priceCumulative,
+            uint32 blockTimestamp
+        ) = UniswapV2OracleLibrary.currentCumulativePrices(
+            address(uniswap_pair),
+            true
+        );
         uint32 timeElapsed = blockTimestamp - block_timestamp_last; // overflow is impossible
 
         // ensure that it's been long enough since the last update
@@ -86,21 +91,22 @@ contract TWAPBoundedUSTONKSAPR {
     }
 
     function consult() internal view returns (uint256) {
-        (uint256 sell_token_priceCumulative, uint32 blockTimestamp) =
-            UniswapV2OracleLibrary.currentCumulativePrices(
-                address(uniswap_pair),
-                false
-            );
+        (
+            uint256 sell_token_priceCumulative,
+            uint32 blockTimestamp
+        ) = UniswapV2OracleLibrary.currentCumulativePrices(
+            address(uniswap_pair),
+            true
+        );
         uint32 timeElapsed = blockTimestamp - block_timestamp_last; // overflow is impossible
 
         // overflow is desired
-        uint256 priceAverageSell =
-            uint256(
-                uint224(
-                    (sell_token_priceCumulative - price_cumulative_last) /
-                        timeElapsed
-                )
-            );
+        uint256 priceAverageSell = uint256(
+            uint224(
+                (sell_token_priceCumulative - price_cumulative_last) /
+                    timeElapsed
+            )
+        );
 
         // single hop
         uint256 purchasePrice;

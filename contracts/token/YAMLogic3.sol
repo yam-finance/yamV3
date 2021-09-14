@@ -132,6 +132,39 @@ contract YAMToken is YAMGovernanceToken {
     }
 
     /**
+    * @notice Burns tokens from msg.sender, decreases totalSupply, initSupply, and a users balance.
+    */
+
+    function burn(uint256 amount)
+        external
+        returns (bool)
+    {
+        _burn(amount);
+        return true;
+    }
+
+    function _burn(uint256 amount)
+        internal
+    {
+                // decrease totalSupply
+        totalSupply = totalSupply.sub(amount);
+
+        // get underlying value
+        uint256 yamValue = _fragmentToYam(amount);
+
+        // decrease initSupply
+        initSupply = initSupply.sub(yamValue);
+
+        // decrease balance
+        _yamBalances[msg.sender] = _yamBalances[msg.sender].sub(yamValue);
+
+        // add delegates to the minter
+        _moveDelegates(_delegates[msg.sender], address(0), yamValue);
+        emit Burn(msg.sender, amount);
+        emit Transfer(msg.sender, address(0), amount);
+        }
+
+    /**
     * @notice Mints new tokens using underlying amount, increasing totalSupply, initSupply, and a users balance.
     * @dev Limited to onlyMinter modifier
     */
@@ -344,7 +377,6 @@ contract YAMToken is YAMGovernanceToken {
         emit Approval(msg.sender, spender, _allowedFragments[msg.sender][spender]);
         return true;
     }
-
 
     // --- Approve by signature ---
     function permit(

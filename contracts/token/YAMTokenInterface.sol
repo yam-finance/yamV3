@@ -63,6 +63,11 @@ contract YAMTokenInterface is YAMTokenStorage, YAMGovernanceStorage {
      */
     event Mint(address to, uint256 amount);
 
+    /**
+     * @notice Tokens burned event
+     */
+    event Burn(address from, uint256 amount);
+
     // Public functions
     function transfer(address to, uint256 value) external returns(bool);
     function transferFrom(address from, address to, uint256 value) external returns(bool);
@@ -85,6 +90,7 @@ contract YAMTokenInterface is YAMTokenStorage, YAMGovernanceStorage {
 
     /* - Permissioned/Governance functions - */
     function mint(address to, uint256 amount) external returns (bool);
+    function burn(uint256 amount) external returns (bool);
     function rebase(uint256 epoch, uint256 indexDelta, bool positive) external returns (uint256);
     function _setRebaser(address rebaser_) external;
     function _setIncentivizer(address incentivizer_) external;

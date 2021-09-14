@@ -34,7 +34,7 @@ contract ReserveUniHelper is TWAPBound {
             amount_ = bal_of_a;
         }
 
-        (uint256 reserve0, uint256 reserve1, ) = UniswapPair(uniswap_pair1).getReserves();
+        (uint256 reserve0, uint256 reserve1, ) = IUniswapV2Pair(uniswap_pair1).getReserves();
         uint256 quoted;
         if (saleTokenIs0) {
             quoted = quote(reserve1, reserve0);
@@ -73,7 +73,7 @@ contract ReserveUniHelper is TWAPBound {
 
         IERC20(sell_token).transferFrom(reserves, uniswap_pair1, amount_);
         IERC20(purchase_token).transferFrom(reserves, uniswap_pair1, amount_b);
-        UniswapPair(uniswap_pair1).mint(address(this));
+        IUniswapV2Pair(uniswap_pair1).mint(address(this));
         complete = true;
     }
 
@@ -85,7 +85,7 @@ contract ReserveUniHelper is TWAPBound {
         require(!complete, "Action complete");
         require(recencyCheck(), "TWAP needs updating");
 
-        (uint256 reserve0, uint256 reserve1, ) = UniswapPair(uniswap_pair1).getReserves();
+        (uint256 reserve0, uint256 reserve1, ) = IUniswapV2Pair(uniswap_pair1).getReserves();
         uint256 quoted;
         if (saleTokenIs0) {
             quoted = quote(reserve1, reserve0);
@@ -98,10 +98,10 @@ contract ReserveUniHelper is TWAPBound {
         // transfer lp tokens back, burn
         if (skip_this) {
           IERC20(uniswap_pair1).transfer(uniswap_pair1, IERC20(uniswap_pair1).balanceOf(address(this)));
-          UniswapPair(uniswap_pair1).burn(reserves);
+          IUniswapV2Pair(uniswap_pair1).burn(reserves);
         } else {
           IERC20(uniswap_pair1).transfer(uniswap_pair1, IERC20(uniswap_pair1).balanceOf(address(this)));
-          UniswapPair(uniswap_pair1).burn(address(this));
+          IUniswapV2Pair(uniswap_pair1).burn(address(this));
         }
         complete = true;
     }
