@@ -57,7 +57,7 @@ contract Prop18 is YAMv3Test {
         bytes[] memory calldatas = new bytes[](9);
 
         string
-            memory description = "Setup proposol as sub gov on indexStaking and uGas/uStonks/uPunks farming, whitelist withdrawals for farming/lping/multisig funding";
+            memory description = "Setup proposol as sub gov on indexStaking/vestingPool and uGas/uStonks/uPunks farming, whitelist withdrawals for farming/lping/multisig funding, update YAM implementation to add burning capability";
 
         // -- Set proposal as sub gov for indexStaking
         targets[0] = address(indexStaking);
