@@ -13,7 +13,7 @@ import {YAMDelegate3} from "../../token/YAMDelegate3.sol";
 
 // Prop for July contributor payment and stream setup
 contract Prop18 is YAMv3Test {
-    Proposal18 private proposal = Proposal18(0x8cCb93a24F5dc8CEe0Cde0cfCc87f6c00Eb3a745);
+    Proposal18 private proposal;
 
     UGASSEPTFarming internal constant UGAS_FARMING_JUN = UGASSEPTFarming(0xd25b60D3180Ca217FDf1748c86247A81b1aa43d6);
     UGASSEPTFarming internal UGAS_FARMING_SEPT = UGASSEPTFarming(0x54837096585faB2E45B9a9b0b38B542136d136D5);
@@ -29,6 +29,7 @@ contract Prop18 is YAMv3Test {
 
     function setUp() public {
         setUpCore();
+        proposal = new Proposal18();
     }
 
     event TEST(
@@ -51,10 +52,10 @@ contract Prop18 is YAMv3Test {
     function test_onchain_prop_18() public {
         // Assert false so it posts the verbose version. Comment this out allow the test to actually succeed
 
-        address[] memory targets = new address[](9);
-        uint256[] memory values = new uint256[](9);
-        string[] memory signatures = new string[](9);
-        bytes[] memory calldatas = new bytes[](9);
+        address[] memory targets = new address[](8);
+        uint256[] memory values = new uint256[](8);
+        string[] memory signatures = new string[](8);
+        bytes[] memory calldatas = new bytes[](8);
 
         string
             memory description = "Setup proposol as sub gov on indexStaking/vestingPool and uGas/uStonks/uPunks farming, whitelist withdrawals for farming/lping/multisig funding, update YAM implementation to add burning capability";
@@ -64,39 +65,36 @@ contract Prop18 is YAMv3Test {
         signatures[0] = "setIsSubGov(address,bool)";
         calldatas[0] = abi.encode(address(proposal), true);
 
-        // -- Set proposal as sub gov for vesting pool
-        targets[1] = address(vestingPool);
-        signatures[1] = "setSubGov(address,bool)";
-        calldatas[1] = abi.encode(proposal, true);
+
 
         // -- Set proposal as sub gov for UGAS June Farming
-        targets[2] = address(UGAS_FARMING_JUN);
+        targets[1] = address(UGAS_FARMING_JUN);
+        signatures[1] = "setIsSubGov(address,bool)";
+        calldatas[1] = abi.encode(address(proposal), true);
+
+        // -- Set proposal as sub gov for UGAS Sept Farming
+        targets[2] = address(UGAS_FARMING_SEPT);
         signatures[2] = "setIsSubGov(address,bool)";
         calldatas[2] = abi.encode(address(proposal), true);
 
-        // -- Set proposal as sub gov for UGAS Sept Farming
-        targets[3] = address(UGAS_FARMING_SEPT);
+        // -- Set proposal as sub gov for old USTONKS Sept Farming
+        targets[3] = address(USTONKS_FARMING_SEPT_1);
         signatures[3] = "setIsSubGov(address,bool)";
         calldatas[3] = abi.encode(address(proposal), true);
 
-        // -- Set proposal as sub gov for old USTONKS Sept Farming
-        targets[4] = address(USTONKS_FARMING_SEPT_1);
+        // -- Set proposal as sub gov for new USTONKS Sept Farming
+        targets[4] = address(USTONKS_FARMING_SEPT_2);
         signatures[4] = "setIsSubGov(address,bool)";
         calldatas[4] = abi.encode(address(proposal), true);
 
         // -- Set proposal as sub gov for new USTONKS Sept Farming
-        targets[5] = address(USTONKS_FARMING_SEPT_2);
+        targets[5] = address(UPUNKS_FARMING_SEPT);
         signatures[5] = "setIsSubGov(address,bool)";
         calldatas[5] = abi.encode(address(proposal), true);
 
-        // -- Set proposal as sub gov for new USTONKS Sept Farming
-        targets[6] = address(UPUNKS_FARMING_SEPT);
-        signatures[6] = "setIsSubGov(address,bool)";
-        calldatas[6] = abi.encode(address(proposal), true);
-
         // -- Whitelist proposal to withdraw usdc. whitelist Swapper to withdraw WETH, SUSHI, and DPI
-        targets[7] = address(reserves);
-        signatures[7] = "whitelistWithdrawals(address[],uint256[],address[])";
+        targets[6] = address(reserves);
+        signatures[6] = "whitelistWithdrawals(address[],uint256[],address[])";
         address[] memory whos = new address[](10);
         uint256[] memory amounts = new uint256[](10);
         address[] memory tokens = new address[](10);
@@ -141,12 +139,12 @@ contract Prop18 is YAMv3Test {
         amounts[9] = uint256(-1);
         tokens[9] = address(yamV3);
 
-        calldatas[7] = abi.encode(whos, amounts, tokens);
+        calldatas[6] = abi.encode(whos, amounts, tokens);
 
         // -- Set Yam Implementation
-        targets[8] = address(yamV3);
-        signatures[8] = "_setImplementation(address,bool,bytes)";
-        calldatas[8] = abi.encode(NEW_YAM_IMPLEMENTATION,false,bytes(""));
+        targets[7] = address(yamV3);
+        signatures[7] = "_setImplementation(address,bool,bytes)";
+        calldatas[7] = abi.encode(NEW_YAM_IMPLEMENTATION,false,bytes(""));
 
         yamhelper.getQuorum(yamV3, me);
         yamhelper.bing();
@@ -192,12 +190,13 @@ contract Prop18 is YAMv3Test {
         // Assert reserves have the xSUSHI we should have
         assertTrue(IERC20(address(xSUSHI)).balanceOf(address(reserves)) > 0);
         // Assert multisig balances are correct
-        assertEq(IERC20(address(USDC)).balanceOf(TREASURY_MULTISIG), 355817846121);
-        assertEq(IERC20(address(WETH)).balanceOf(TREASURY_MULTISIG), 26624383201800000000);
-        assertEq(IERC20(address(yamV3)).balanceOf(TREASURY_MULTISIG), 285626979413766930460584);
+        assertEq(IERC20(address(USDC)).balanceOf(TREASURY_MULTISIG), 100817846121);
+        assertEq(IERC20(address(WETH)).balanceOf(TREASURY_MULTISIG), 3000000000000000000);
+        assertEq(IERC20(address(yamV3)).balanceOf(TREASURY_MULTISIG), 34989830191026533128789);
     }
 
     // Creates and executes 2nd proposal that withdraws all assets from synth farming and dpi/eth pooling, testing that they work as expected
+    // Not strictly necessary, as withdrawals are tested elsewhere, but just as an extra sanity check 
     function testWithdrawals() internal {
         address[] memory targets = new address[](4);
         uint256[] memory values = new uint256[](4);
@@ -248,7 +247,7 @@ contract Prop18 is YAMv3Test {
         assertTrue(IERC20(WETH).balanceOf(address(reserves)) > 770 * (10**18));
         // Assert we have the DPI we should have
         assertTrue(IERC20(DPI).balanceOf(address(reserves)) > 4400 * (10**18));
-        // Assert we have the DPI we should have
+        // Assert we have the USDC we should have
         assertTrue(IERC20(USDC).balanceOf(address(reserves)) > 987000 * (10**6));
     }
 }

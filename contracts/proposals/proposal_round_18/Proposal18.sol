@@ -67,14 +67,12 @@ contract Proposal18 {
     IUMAFarming internal constant UPUNKS_FARMING_SEPT =
         IUMAFarming(0x0c9D03B5CDa39184f62C7b05e77408C06A963FE6);
 
-    // Sending USDC, WETH, and YAM to multisig
+    // Sending USDC and WETH to multisig
     address internal constant TREASURY_MULTISIG = 0x744D16d200175d20E6D8e5f405AEfB4EB7A962d1;
     IERC20 internal constant WETH =
         IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
     IERC20 internal constant USDC =
         IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
-    VestingPool internal constant VESTING_POOL =
-        VestingPool(0xDCf613db29E4d0B35e7e15e93BF6cc6315eB0b82);
 
     // For burning the excess YAM
     YAMTokenInterface internal constant YAM =
@@ -114,21 +112,12 @@ contract Proposal18 {
         // Approve entering ETH/DPI uniswap v2
         INDEX_STAKING._approveStakingFromReserves(false, 119 * (10**18));
 
-        // Send WETH to multisig - 3 ETH (~$10k) to keep in multisig, the rest to deposit to our new Fuse pools
-        WETH.transferFrom(RESERVES, TREASURY_MULTISIG, 26624383201800000000);
+        // Send WETH to multisig - 3 ETH (~$10k)
+        WETH.transferFrom(RESERVES, TREASURY_MULTISIG, 3 * (10**18));
 
-        // Send USDC to multisig - 100,000 to keep in multisig, 255,000 to convert to dai and deposit to our new Fuse pools
-        USDC.transferFrom(RESERVES, TREASURY_MULTISIG, 355000 * (10**6));
+        // Send USDC to multisig - 100,000 USDC
+        USDC.transferFrom(RESERVES, TREASURY_MULTISIG, 100000 * (10**6));
 
-        // Send YAM to multisig to deposit to Fuse pools
-        VESTING_POOL.payout(
-            VESTING_POOL.openStream(
-                TREASURY_MULTISIG,
-                0,
-                94185 * (10**24) // This is in BoU
-            )
-        );
-        
         // Burn 20b YAM
         YAM.transferFrom(RESERVES, address(this), 20000000000 * (10**18));
         YAM.burn(20000000000 * (10**18));
