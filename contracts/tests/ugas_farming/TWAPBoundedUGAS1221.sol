@@ -4,7 +4,7 @@ import "../../lib/IUniswapV2Pair.sol";
 import "../../lib/UniswapV2OracleLibrary.sol";
 
 // Hardcoding a lot of constants and stripping out unnecessary things because of high gas prices
-contract TWAPBoundedUGASSEPT {
+contract TWAPBoundedUGAS1221 {
     using SafeMath for uint256;
 
     uint256 internal constant BASE = 10**18;
@@ -13,13 +13,13 @@ contract TWAPBoundedUGASSEPT {
 
     /// @notice Current uniswap pair for purchase & sale tokens
     IUniswapV2Pair internal uniswap_pair =
-        IUniswapV2Pair(0x5CCD155ad26B74913ed6266A516A085A2343D426);
+        IUniswapV2Pair(0xF6E15Cdf292D36A589276C835cC576F0DF0Fe53A);
 
     IERC20 internal constant WETH =
         IERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
 
-    IERC20 internal constant SEPT_UGAS =
-        IERC20(0xfc10b3A8011B00489705EF1Fc00D0e501106cB1D);
+    IERC20 internal constant UGAS =
+        IERC20(0xE3Df5e08b72704C23229cB92fe847B23BfDe9dBd);
 
     /// @notice last cumulative price update time
     uint32 internal block_timestamp_last;

@@ -6,22 +6,22 @@ pragma experimental ABIEncoderV2;
 import "../../tests/test_tests/base.t.sol";
 import {IERC20} from "../../lib/IERC20.sol";
 import {Proposal18} from "../../proposals/proposal_round_18/Proposal18.sol";
-import {UGASSEPTFarming} from "../ugas_farming/UGASSEPTFarming.sol";
+import {UGAS1221Farming} from "../ugas_farming/UGAS1221Farming.sol";
 import {USTONKSSEPTFarming} from "..//ustonks_farming/USTONKSSEPTFarming.sol";
-import {UPUNKSSEPTFarming} from "..//upunks_farming/UPUNKSSEPTFarming.sol";
+import {UPUNKS1221Farming} from "..//upunks_farming/UPUNKS1221Farming.sol";
 import {YAMDelegate3} from "../../token/YAMDelegate3.sol";
 
 // Prop for July contributor payment and stream setup
 contract Prop18 is YAMv3Test {
-    Proposal18 private proposal;
+    Proposal18 private proposal = Proposal18(0xffA396b7490dDAa4230B34aF365620Fa1802c4B3);
 
-    UGASSEPTFarming internal constant UGAS_FARMING_JUN = UGASSEPTFarming(0xd25b60D3180Ca217FDf1748c86247A81b1aa43d6);
-    UGASSEPTFarming internal UGAS_FARMING_SEPT = UGASSEPTFarming(0x54837096585faB2E45B9a9b0b38B542136d136D5);
+    UGAS1221Farming internal constant UGAS_FARMING_JUN = UGAS1221Farming(0xd25b60D3180Ca217FDf1748c86247A81b1aa43d6);
+    UGAS1221Farming internal UGAS_FARMING_SEPT = UGAS1221Farming(0x54837096585faB2E45B9a9b0b38B542136d136D5);
 
     USTONKSSEPTFarming internal USTONKS_FARMING_SEPT_1 = USTONKSSEPTFarming(0x9789204c43bbc03E9176F2114805B68D0320B31d);
     USTONKSSEPTFarming internal USTONKS_FARMING_SEPT_2 = USTONKSSEPTFarming(0xdb0742bdBd7876344046f0E7Ca8bC769e85Fdd01);
 
-    UPUNKSSEPTFarming internal UPUNKS_FARMING_SEPT = UPUNKSSEPTFarming(0x0c9D03B5CDa39184f62C7b05e77408C06A963FE6);
+    UPUNKS1221Farming internal UPUNKS_FARMING_SEPT = UPUNKS1221Farming(0x0c9D03B5CDa39184f62C7b05e77408C06A963FE6);
 
     address internal NEW_YAM_IMPLEMENTATION = 0x27C5736b49B89d4765d03734a0a51c461F09672d;
 
@@ -29,7 +29,6 @@ contract Prop18 is YAMv3Test {
 
     function setUp() public {
         setUpCore();
-        proposal = new Proposal18();
     }
 
     event TEST(
