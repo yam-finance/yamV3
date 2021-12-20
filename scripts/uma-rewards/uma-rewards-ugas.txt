@@ -1,4 +1,4 @@
-10% of the reward tokens remain in the multisig
+18% of the reward tokens remain in the multisig
 
 Synth: upunks-1221
 Reward Token: 0xff8f62855fD433347BbE62f1292F905f7aC1DF9d | scUMA-1103
