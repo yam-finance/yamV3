@@ -7,14 +7,14 @@ let paymentPeriods = [
   {
     // 1633046400 | 01.10 | scUMA-1103
     startBlock: 13330090,
-    amount: (2885000000000000000000n / 2n) * 90n / 100n,
+    amount: 2885000000000000000000n * 90n / 100n,
     endBlock: 13527858,
   },
   /*
   {
     // 1635724800 | 01.11 | scUMA-1202
     startBlock: 13527858,
-    amount: (6316000000000000000000n / 2n) * 90n / 100n,
+    amount: 6316000000000000000000n * 90n / 100n,
     endBlock: 13680218,
   },
   */
@@ -22,7 +22,7 @@ let paymentPeriods = [
   {
     // 1635724800 | 25.11 | UMA
     startBlock: 13680218,
-    amount: (1772000000000000000000n / 2n) * 90n / 100n,
+    amount: 1772000000000000000000n * 90n / 100n,
     endBlock: 13717846,
   },
   */
@@ -30,7 +30,7 @@ let paymentPeriods = [
   {
     // 1638316800 | 01.12 | scUMA-0106
     startBlock: 13717846,
-    amount: (2890000000000000000000n / 2n) * 90n / 100n,
+    amount: 2890000000000000000000n * 90n / 100n,
     endBlock: 13841404,
   }
   */
@@ -42,14 +42,12 @@ let contracts = [
     pool: '0x9469313a1702dc275015775249883cfc35aa94d8',
     periodData: []
   },
-  /*
   {
     createdAt: 13334204,
     emp: '0x7c62e5c39b7b296f4f2244e7eb51bea57ed26e4b', //uGAS 1221
     pool: '0xf6e15cdf292d36a589276c835cc576f0df0fe53a',
     periodData: []
   },  
-  */
 ]
 
 contracts.forEach((contract) => {
