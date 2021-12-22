@@ -6,7 +6,7 @@ const USDC = new web3.eth.Contract(ABIS.ERC20_ABI, '0xa0b86991c6218b36c1d19d4a2e
 let paymentPeriods = [
   {
     // 1633046400 | 01.10 | scUMA-1103
-    startBlock: 13330090,
+    startBlock: 13330090, // 13412045
     amount: 2885000000000000000000n * 90n / 100n,
     endBlock: 13527858,
   },
