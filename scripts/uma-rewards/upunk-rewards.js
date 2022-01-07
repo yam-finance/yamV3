@@ -1,26 +1,50 @@
 let Web3 = require("web3")
-let web3 = new Web3('http://192.168.1.39:8545')
+let web3 = new Web3('https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161')
 let ABIS = require('./abis.js')
 const WETH = new web3.eth.Contract(ABIS.ERC20_ABI, '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2')
 const USDC = new web3.eth.Contract(ABIS.ERC20_ABI, '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48')
 let paymentPeriods = [
+/*
+    {
+        // 1633046400 | 01.10 | scUMA-1103
+        startBlock: 13330090,
+        amount: (2885000000000000000000n * 90n) / 100n,
+        endBlock: 13527858,
+    },
+    {
+        // 1635724800 | 01.11 | scUMA-1202
+        startBlock: 13527858,
+        amount: (6316000000000000000000n * 90n) / 100n,
+        endBlock: 13680218,
+    },
+    {
+        // 1635724800 | 25.11 | UMA
+        startBlock: 13680218,
+        amount: (1772000000000000000000n * 90n) / 100n,
+        endBlock: 13717846,
+    },
+*/
+    {
+        // 1638316800 | 01.12 | scUMA-0106
+        startBlock: 13717846,
+        amount: (6454000000000000000000n * 90n) / 100n,
+        endBlock: 13916160,
+    },
+]
+let contracts = [
   {
-    startBlock: 12680434,
-    amount: 5000000000000000000000n * 82n / 100n,
-    endBlock: 12725501,
+    createdAt: 13334278,
+    emp: '0xf35a80e4705c56fd345e735387c3377baccd8189', //uPUNK 1221
+    pool: '0x9469313a1702dc275015775249883cfc35aa94d8',
+    periodData: []
   },
   {
-    startBlock: 12725501,
-    amount: 5000000000000000000000n * 82n / 100n,
-    endBlock: 12770312,
-  }
+    createdAt: 13334204,
+    emp: '0x7c62e5c39b7b296f4f2244e7eb51bea57ed26e4b', //uGAS 1221
+    pool: '0xf6e15cdf292d36a589276c835cc576f0df0fe53a',
+    periodData: []
+  },  
 ]
-let contracts = [{
-  createdAt: 12422034,
-  emp: '0xF8eF02C10C473CA5E48b10c62ba4d46115dd2288', //uPUNK 0921
-  pool: '0x6e01db46b183593374a49c0025e42c4bb7ee3ffa',
-  periodData: []
-}]
 
 contracts.forEach((contract) => {
   contract.poolContract = new web3.eth.Contract(ABIS.POOL_ABI, contract.pool)
@@ -35,13 +59,15 @@ async function generateRewards() {
   await calculateUserProvidedETHSecondsPerContractPerPeriod()
   calculateProvidedPerPeriod()
   calculateRewards()
+  let totalRewards = 0n
   Object.keys(users).forEach((userAddress) => {
     if (users[userAddress].rewards) {
-      console.log(userAddress+','+users[userAddress].rewards.toString())
+      totalRewards += users[userAddress].rewards
+      console.log(userAddress + ',' + web3.utils.fromWei(users[userAddress].rewards.toString(), 'ether'))
     }
   })
 
-
+  console.log("Total: " + web3.utils.fromWei(totalRewards.toString(), 'ether'))
 }
 
 generateRewards()
@@ -49,6 +75,7 @@ generateRewards()
 
 function calculateRewards() {
   paymentPeriods.forEach((period) => {
+    console.log(period)
     let totalEthSeconds = 0n
     Object.keys(period.users).forEach((userAddress) => {
       if (users[userAddress].rewards === undefined) {
@@ -112,13 +139,13 @@ async function calculateETHPerLPTokenPerContractPerPeriod() {
       if (totalSupply === undefined) {
         console.log(period.endBlock, contract)
       }
-      try{
-      contract.periodData[periodIndex] = {
-        ethPerLPToken: totalSupply * (10n ** 18n) / ethBalance
+      try {
+        contract.periodData[periodIndex] = {
+          ethPerLPToken: totalSupply * (10n ** 18n) / ethBalance
+        }
+      } catch (e) {
+        console.log(e, contractIndex, periodIndex)
       }
-    }catch(e){
-      console.log(e, contractIndex, periodIndex)
-    }
     }))
 
   }))
