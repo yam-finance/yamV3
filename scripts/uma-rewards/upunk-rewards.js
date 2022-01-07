@@ -4,36 +4,32 @@ let ABIS = require('./abis.js')
 const WETH = new web3.eth.Contract(ABIS.ERC20_ABI, '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2')
 const USDC = new web3.eth.Contract(ABIS.ERC20_ABI, '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48')
 let paymentPeriods = [
-  {
-    // 1633046400 | 01.10 | scUMA-1103
-    startBlock: 13330090,
-    amount: 2885000000000000000000n * 90n / 100n,
-    endBlock: 13527858,
-  },
-  /*
-  {
-    // 1635724800 | 01.11 | scUMA-1202
-    startBlock: 13527858,
-    amount: 6316000000000000000000n * 90n / 100n,
-    endBlock: 13680218,
-  },
-  */
-  /*
-  {
-    // 1635724800 | 25.11 | UMA
-    startBlock: 13680218,
-    amount: 1772000000000000000000n * 90n / 100n,
-    endBlock: 13717846,
-  },
-  */
-  /*
-  {
-    // 1638316800 | 01.12 | scUMA-0106
-    startBlock: 13717846,
-    amount: 2890000000000000000000n * 90n / 100n,
-    endBlock: 13841404,
-  }
-  */
+/*
+    {
+        // 1633046400 | 01.10 | scUMA-1103
+        startBlock: 13330090,
+        amount: (2885000000000000000000n * 90n) / 100n,
+        endBlock: 13527858,
+    },
+    {
+        // 1635724800 | 01.11 | scUMA-1202
+        startBlock: 13527858,
+        amount: (6316000000000000000000n * 90n) / 100n,
+        endBlock: 13680218,
+    },
+    {
+        // 1635724800 | 25.11 | UMA
+        startBlock: 13680218,
+        amount: (1772000000000000000000n * 90n) / 100n,
+        endBlock: 13717846,
+    },
+*/
+    {
+        // 1638316800 | 01.12 | scUMA-0106
+        startBlock: 13717846,
+        amount: (6454000000000000000000n * 90n) / 100n,
+        endBlock: 13916160,
+    },
 ]
 let contracts = [
   {
